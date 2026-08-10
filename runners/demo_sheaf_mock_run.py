@@ -19,9 +19,11 @@ Usage:
 
 import numpy as np
 
-from sahf.gate import GateThresholds
-from sahf.logger import RunLogger, setup_app_logging
-from sahf.sheaf import SheafOrchestrator, StaticAgent, VocabSpec
+from pipeline.stage_2_divergence_gate import GateThresholds
+from utils.logger import RunLogger, setup_app_logging
+from runners.sheaf_orchestrator import SheafOrchestrator
+from pipeline.stage_0_agent_ensemble import StaticAgent
+from prefix_tree_build.vocab import VocabSpec
 
 TARGET = b" Paris is the capital of France"
 DECOY = b" Berlin is the capital of Germany"

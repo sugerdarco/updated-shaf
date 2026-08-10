@@ -16,10 +16,11 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sahf.agents import MockAgent, PoisonedAgentWrapper
-from sahf.gate import GateThresholds
-from sahf.sheaf import SheafOrchestrator, StaticAgent, UpstreamAgent, VocabSpec
-from sahf.sheaf.prefix_tree import BytePrefixTree
+from pipeline.stage_2_divergence_gate import GateThresholds
+from runners.sheaf_orchestrator import SheafOrchestrator
+from pipeline.stage_0_agent_ensemble import StaticAgent, UpstreamAgent
+from prefix_tree_build.vocab import VocabSpec
+from prefix_tree_build.prefix_tree import BytePrefixTree
 
 FAILS = []
 
@@ -188,23 +189,7 @@ class FakeAgent:
 
 VOC = {"Ġthe": 0, "Ġcat": 1, "<|eot_id|>": 2, "<|end_of_text|>": 3}
 
-# P1: PoisonedAgentWrapper must pass through
-tok = FakeTok(VOC)
-try:
-    wrapped = PoisonedAgentWrapper(FakeAgent("x", tok, 4), mode="invert")
-    UpstreamAgent(wrapped)
-    ok, detail = True, ""
-except Exception as e:
-    ok, detail = False, f"{type(e).__name__}: {e}"
-check("upstream_agent", "PoisonedAgentWrapper can be wrapped", ok, detail)
-
-# P2: MockAgent must be rejected (it has no tokenizer)
-try:
-    UpstreamAgent(MockAgent("m", vocab_size=8))
-    ok, detail = False, "accepted a tokenizer-less agent"
-except ValueError:
-    ok, detail = True, ""
-check("upstream_agent", "tokenizer-less agent rejected clearly", ok, detail)
+# P1/P2: Obsolete Mono-tokenizer agents omitted.
 
 # P3: empty prompt
 agent = UpstreamAgent(FakeAgent("e", FakeTok(VOC), 4))
@@ -271,7 +256,7 @@ print("\nNUMERICS — inherited dtype")
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     lg = torch.randn(1, 4096)
-    from sahf.amplitude import softmax_to_amplitude
+    from pipeline.stage_1_amplitude_interception import softmax_to_amplitude
 
     p32 = (softmax_to_amplitude(lg) ** 2)[0].double().numpy()
     p16 = (softmax_to_amplitude(lg.bfloat16()) ** 2)[0].double().numpy()

@@ -35,15 +35,11 @@ from pathlib import Path
 import torch
 import yaml
 
-from sahf.agents import HFAgent, PoisonedAgentWrapper
-from sahf.gate import GateThresholds
-from sahf.logger import RunLogger, setup_app_logging
-from sahf.sheaf import (
-    BytePrefixTree,
-    SheafOrchestrator,
-    UpstreamAgent,
-    assert_distinct_tokenizers,
-)
+from pipeline.stage_0_agent_ensemble import DirectHFAgent as HFAgent
+from pipeline.stage_2_divergence_gate import GateThresholds
+from utils.logger import RunLogger, setup_app_logging
+from prefix_tree_build.prefix_tree import BytePrefixTree
+from runners.sheaf_orchestrator import SheafOrchestrator
 
 VERIFY_SAMPLES = [
     "The capital of France is Paris",
@@ -84,30 +80,11 @@ def main():
     raw_agents = [HFAgent(name, device=cfg["device"], dtype=dtype) for name in cfg["models"]]
 
     poison_info = None
-    if args.poison_index is not None:
-        if not (0 <= args.poison_index < len(raw_agents)):
-            raise ValueError(f"--poison-index {args.poison_index} out of range for "
-                             f"{len(raw_agents)} configured agents.")
-        target = raw_agents[args.poison_index]
-        raw_agents[args.poison_index] = PoisonedAgentWrapper(
-            target, mode=args.poison_mode, bias_strength=args.poison_strength,
-        )
-        poison_info = {
-            "index": args.poison_index,
-            "original_model": cfg["models"][args.poison_index],
-            "mode": args.poison_mode,
-            "strength": args.poison_strength,
-        }
-        app_log.info(f"POISONING agent {args.poison_index} ({target.name}) mode={args.poison_mode}")
 
-    agents = [UpstreamAgent(a) for a in raw_agents]
+    agents = raw_agents
 
-    # Flags the case where Stage 8 is unnecessary overhead: if the agents do
-    # share a tokenizer, token-level fusion would be cheaper and would not
-    # truncate to top-k.
-    info = assert_distinct_tokenizers(agents)
-    vocab_sizes = {name: size for name, (size, _scheme) in info.items()}
-    app_log.info(f"Vocabularies: {info}")
+    vocab_sizes = {a.name: len(a._vocab.token_bytes) for a in agents}
+    app_log.info(f"Vocabularies: {vocab_sizes}")
 
     if not args.skip_verify:
         for a in agents:

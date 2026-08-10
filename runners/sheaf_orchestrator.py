@@ -47,9 +47,9 @@ from typing import List, Optional
 
 import numpy as np
 
-from ..gate import GateDecision, GateThresholds, mean_entropy, pairwise_amplitude_spread  # noqa: F401
-from .pipeline import Stage8Pipeline
-from .reconciler import byte_level_sections, to_amplitude
+from pipeline.stage_2_divergence_gate import GateDecision, GateThresholds, mean_entropy, pairwise_amplitude_spread  # noqa: F401
+from pipeline.orchestrator_pipeline import Stage8Pipeline
+from pipeline.stage_8_sheaf_reconciliation import byte_level_sections, to_amplitude
 
 
 class SheafOrchestrator:

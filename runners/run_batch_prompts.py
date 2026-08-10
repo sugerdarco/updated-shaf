@@ -18,15 +18,11 @@ from pathlib import Path
 import torch
 import yaml
 
-from sahf.agents import HFAgent, PoisonedAgentWrapper
-from sahf.gate import GateThresholds
-from sahf.logger import RunLogger, setup_app_logging
-from sahf.sheaf import (
-    BytePrefixTree,
-    SheafOrchestrator,
-    UpstreamAgent,
-    assert_distinct_tokenizers,
-)
+from pipeline.stage_0_agent_ensemble import DirectHFAgent as HFAgent
+from pipeline.stage_2_divergence_gate import GateThresholds
+from utils.logger import RunLogger, setup_app_logging
+from prefix_tree_build.prefix_tree import BytePrefixTree
+from runners.sheaf_orchestrator import SheafOrchestrator
 
 
 def main():
@@ -61,26 +57,11 @@ def main():
     raw_agents = [HFAgent(name, device=cfg["device"], dtype=dtype) for name in cfg["models"]]
 
     poison_info = None
-    if args.poison_index is not None:
-        if not (0 <= args.poison_index < len(raw_agents)):
-            raise ValueError(f"--poison-index {args.poison_index} out of range for {len(raw_agents)} agents.")
-        target = raw_agents[args.poison_index]
-        raw_agents[args.poison_index] = PoisonedAgentWrapper(
-            target, mode=args.poison_mode, bias_strength=args.poison_strength,
-        )
-        poison_info = {
-            "index": args.poison_index,
-            "original_model": cfg["models"][args.poison_index],
-            "mode": args.poison_mode,
-            "strength": args.poison_strength,
-        }
-        app_log.info(f"POISONING agent {args.poison_index} ({target.name}) with mode={args.poison_mode}")
 
     # Cross-tokenizer path: every agent keeps its own tokenizer and encodes the
-    # shared context itself. There is deliberately no shared-vocabulary check —
-    # a shared vocabulary is exactly what this configuration does not have.
-    agents = [UpstreamAgent(a) for a in raw_agents]
-    vocab_info = assert_distinct_tokenizers(agents)
+    # shared context itself.
+    agents = raw_agents
+    vocab_info = [a.name for a in agents]
     app_log.info(f"Vocabularies: {vocab_info}")
 
     # A mis-detected tokenizer scheme does not raise — it shifts every token by a
