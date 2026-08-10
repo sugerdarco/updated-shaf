@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from pipeline.stage_1_amplitude_interception import softmax_to_amplitude
 
