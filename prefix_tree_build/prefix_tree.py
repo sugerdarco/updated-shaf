@@ -32,7 +32,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from vocab import VocabSpec
+try:
+    from .vocab import VocabSpec
+except ImportError:
+    from vocab import VocabSpec
 
 BYTE_DIM = 256  # the base alphabet: one symbol per byte value
 
@@ -320,6 +323,44 @@ class BytePrefixTree:
 
     def touched_nodes(self, agent: int) -> np.ndarray | None:
         return self._touched.get(agent)
+
+    def active_nodes(
+        self,
+        covers: Sequence[np.ndarray],
+        *,
+        eps: float = 1e-6,
+        max_depth: int | None = None,
+        candidates: np.ndarray | None = None,
+    ) -> np.ndarray:
+        """Nodes worth fusing: any agent puts >= eps cover mass there."""
+        if candidates is not None:
+            cand = np.unique(np.asarray(candidates, dtype=np.int64))
+            if cand.size == 0:
+                return cand
+            vals = np.maximum.reduce([np.asarray(c)[cand] for c in covers])
+            sel = cand[vals >= eps]
+            if max_depth is not None:
+                sel = sel[np.asarray(self.depth)[sel] <= max_depth]
+            return sel
+
+        stacked = np.maximum.reduce([np.asarray(c) for c in covers])
+        mask = stacked >= eps
+        if max_depth is not None:
+            mask &= np.asarray(self.depth) <= max_depth
+        return np.flatnonzero(mask)
+
+    def glue_scratch(self, nodes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Reusable (glued_cover, in_candidate) buffers, cleared for nodes."""
+        if self._glue_cover is None:
+            self._glue_cover = np.zeros(self.n_nodes, dtype=np.float64)
+            self._glue_mask = np.zeros(self.n_nodes, dtype=bool)
+        else:
+            prev = self._glue_dirty
+            if prev is not None and prev.size:
+                self._glue_cover[prev] = 0.0
+                self._glue_mask[prev] = False
+        self._glue_dirty = nodes
+        return self._glue_cover, self._glue_mask
 
     # ------------------------------------------------------------------
     # persistence

@@ -1,6 +1,7 @@
 import numpy as np
 
-from prefix_tree_build.prefix_tree import BytePrefixTree, VocabSpec
+from prefix_tree_build.vocab import VocabSpec
+from prefix_tree_build.prefix_tree import BytePrefixTree
 from pipeline.stage_8_sheaf_reconciliation import SheafReconciler, to_amplitude, to_probability, hellinger
 
 def test_amplitude_and_probability_conversion():
@@ -20,11 +21,11 @@ def test_hellinger_distance():
     assert np.isclose(h_dist, 1.0)
 
 def test_sheaf_reconciler_basic():
-    # Construct a minimal mock tree with 2 agents
-    vocab1 = VocabSpec(agent_idx=0, token_bytes=[b"cat", b"dog"], token_ids=[0, 1])
-    vocab2 = VocabSpec(agent_idx=1, token_bytes=[b"cat", b"cow"], token_ids=[0, 1])
+    # Construct a minimal mock tree with 2 agents using VocabSpec.from_mapping
+    vocab1 = VocabSpec.from_mapping({0: b" Paris", 1: b" Berlin"}, name="agent_0")
+    vocab2 = VocabSpec.from_mapping({0: b" Paris", 1: b" Rome"}, name="agent_1")
     
-    tree = BytePrefixTree([vocab1, vocab2])
+    tree = BytePrefixTree.from_vocabs([vocab1, vocab2])
     reconciler = SheafReconciler(fusion="mean")
     
     probs_a = np.array([0.8, 0.2])

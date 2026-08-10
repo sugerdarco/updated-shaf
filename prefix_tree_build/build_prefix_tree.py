@@ -14,8 +14,12 @@ from pathlib import Path
 
 import yaml
 
-from vocab import VocabSpec
-from prefix_tree import BytePrefixTree
+try:
+    from .vocab import VocabSpec
+    from .prefix_tree import BytePrefixTree
+except ImportError:
+    from vocab import VocabSpec
+    from prefix_tree import BytePrefixTree
 
 VERIFY_SAMPLES = [
     "The capital of France is Paris",
