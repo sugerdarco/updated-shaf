@@ -43,6 +43,8 @@ from __future__ import annotations
 
 import codecs
 import time
+
+from utils.output_cleaner import clean_output
 from typing import List, Optional
 
 import numpy as np
@@ -237,4 +239,7 @@ class SheafOrchestrator:
             text += decoder.decode(chunk)
             step_idx += 1
 
-        return text, history
+        # Post-generation cleanup: remove Yi quote artifacts, byte-bloat doubled
+        # letters, and repetition loops before returning to the caller.
+        cleaned_text = clean_output(text, prompt=prompt)
+        return cleaned_text, history
