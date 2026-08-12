@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--run-label", default="batch_eval", help="Label for batch output folder.")
     parser.add_argument("--poison-index", type=int, default=None,
                         help="0-based index of agent to poison across all prompts.")
-    parser.add_argument("--poison-mode", default="invert", choices=PoisonedAgentWrapper.VALID_MODES,
+    parser.add_argument("--poison-mode", default="invert", choices=["invert", "uniform_noise", "random_bias"],
                         help="Poisoning mode: invert, uniform_noise, random_bias.")
     parser.add_argument("--poison-strength", type=float, default=25.0,
                         help="Poison strength for noise/bias modes.")
@@ -53,8 +53,14 @@ def main():
     app_log = setup_app_logging(cfg.get("out_dir", "out"))
     app_log.info(f"Loading agents ONCE for batch run: {cfg['models']}")
 
+    from transformers import AutoModelForCausalLM, AutoTokenizer
     dtype = getattr(torch, cfg["dtype"])
-    raw_agents = [HFAgent(name, device=cfg["device"], dtype=dtype) for name in cfg["models"]]
+    raw_agents = []
+    for name in cfg["models"]:
+        app_log.info(f"Loading {name}...")
+        tok = AutoTokenizer.from_pretrained(name)
+        mdl = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype).to(cfg["device"])
+        raw_agents.append(HFAgent(name, mdl, tok, device=cfg["device"]))
 
     poison_info = None
 
