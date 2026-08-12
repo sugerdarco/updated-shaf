@@ -56,11 +56,12 @@ def main():
     from transformers import AutoModelForCausalLM, AutoTokenizer
     dtype = getattr(torch, cfg["dtype"])
     raw_agents = []
-    for name in cfg["models"]:
-        app_log.info(f"Loading {name}...")
-        tok = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
-        mdl = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype, trust_remote_code=True).to(cfg["device"])
-        raw_agents.append(HFAgent(name, mdl, tok, device=cfg["device"]))
+    devices = cfg.get("devices", [cfg["device"]] * len(cfg["models"]))
+    for name, dev in zip(cfg["models"], devices):
+        app_log.info(f"Loading {name} on {dev}...")
+        tok = AutoTokenizer.from_pretrained(name, trust_remote_code=True, token=os.environ.get("HF_TOKEN"))
+        mdl = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype, trust_remote_code=True, token=os.environ.get("HF_TOKEN")).to(dev)
+        raw_agents.append(HFAgent(name, mdl, tok, device=dev))
 
     poison_info = None
 

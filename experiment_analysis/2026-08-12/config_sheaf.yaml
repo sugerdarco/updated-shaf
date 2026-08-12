@@ -1,0 +1,23 @@
+models:
+  - "mistralai/Mistral-7B-Instruct-v0.2"
+  - "meta-llama/Llama-2-13b-chat-hf"
+  - "01-ai/Yi-6B-Chat"
+
+devices:
+  - "cuda:0"
+  - "cuda:1"
+  - "cuda:0"
+
+device: "cuda:0"
+dtype: "bfloat16"
+out_dir: "out"
+
+gate:
+  entropy_threshold: 1.5
+  divergence_threshold: 0.25
+  mad_multiplier: 3.0
+
+sheaf:
+  top_k: 16
+  max_new_bytes: 256
+  tree_path: "artifacts/prefix_tree.npz"

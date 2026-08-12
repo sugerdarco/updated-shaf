@@ -3,7 +3,12 @@ models:
   - "meta-llama/Llama-2-13b-chat-hf"
   - "01-ai/Yi-6B-Chat"
 
-device: "cuda"
+devices:
+  - "cuda:0"
+  - "cuda:1"
+  - "cuda:0"
+
+device: "cuda:0"
 dtype: "bfloat16"
 out_dir: "out"
 

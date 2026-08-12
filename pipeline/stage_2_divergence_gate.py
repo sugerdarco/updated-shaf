@@ -59,3 +59,13 @@ def divergence_gate(psi_list: List[torch.Tensor], thresholds: GateThresholds) ->
     D = pairwise_amplitude_spread(psi_list)
     agree = (H < thresholds.entropy) and (D < thresholds.divergence)
     return GateDecision(agree=agree, entropy=H, divergence=D)
+
+
+def byte_space_gate(max_spread: float, thresholds: GateThresholds) -> GateDecision:
+    """Byte-space Stage 2 Gate.
+    As per architecture, entropy term does not transfer to byte space.
+    The divergence term carries the routing decision essentially alone.
+    """
+    # We ignore entropy in byte-space routing, or assume it passes
+    agree = (max_spread < thresholds.divergence)
+    return GateDecision(agree=agree, entropy=0.0, divergence=max_spread)
