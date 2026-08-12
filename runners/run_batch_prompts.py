@@ -58,8 +58,8 @@ def main():
     raw_agents = []
     for name in cfg["models"]:
         app_log.info(f"Loading {name}...")
-        tok = AutoTokenizer.from_pretrained(name)
-        mdl = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype).to(cfg["device"])
+        tok = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
+        mdl = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype, trust_remote_code=True).to(cfg["device"])
         raw_agents.append(HFAgent(name, mdl, tok, device=cfg["device"]))
 
     poison_info = None
