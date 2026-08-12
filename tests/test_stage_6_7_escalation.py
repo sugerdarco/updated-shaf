@@ -1,5 +1,4 @@
 import torch
-import pytest
 
 from pipeline.stage_6_and_7_robust_escalation import detect_outliers, weiszfeld_geometric_median
 

@@ -96,8 +96,8 @@ prefix_tree_build/
 └── config_sheaf.yaml       # Configuration file for model tokenizers
 ```
 
-* [`README.md`](file:///home/r4xok/Post_Grade_Project/TEMP/updated-shaf/prefix_tree_build/README.md): This documentation file.
-* [`vocab.py`](file:///home/r4xok/Post_Grade_Project/TEMP/updated-shaf/prefix_tree_build/vocab.py): Vocabulary extraction, scheme detection, and byte decoding.
-* [`prefix_tree.py`](file:///home/r4xok/Post_Grade_Project/TEMP/updated-shaf/prefix_tree_build/prefix_tree.py): Union byte-prefix tree data structure & fast mass propagation.
-* [`build_prefix_tree.py`](file:///home/r4xok/Post_Grade_Project/TEMP/updated-shaf/prefix_tree_build/build_prefix_tree.py): CLI tool to precompute and save prefix tree artifacts.
-* [`config_sheaf.yaml`](file:///home/r4xok/Post_Grade_Project/TEMP/updated-shaf/prefix_tree_build/config_sheaf.yaml): YAML configuration for models and tree paths.
+* [`README.md`](README.md): This documentation file.
+* [`vocab.py`](vocab.py): Vocabulary extraction, scheme detection, and byte decoding.
+* [`prefix_tree.py`](prefix_tree.py): Union byte-prefix tree data structure & fast mass propagation.
+* [`build_prefix_tree.py`](build_prefix_tree.py): CLI tool to precompute and save prefix tree artifacts.
+* [`config_sheaf.yaml`](config_sheaf.yaml): YAML configuration for models and tree paths.

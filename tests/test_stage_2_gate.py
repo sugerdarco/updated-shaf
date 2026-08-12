@@ -1,5 +1,4 @@
 import torch
-import pytest
 
 from pipeline.stage_2_divergence_gate import GateThresholds, divergence_gate
 

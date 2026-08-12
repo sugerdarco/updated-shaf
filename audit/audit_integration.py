@@ -233,20 +233,30 @@ check(
 print("\nDEAD CODE / DOC DRIFT")
 # =====================================================================
 
-src = (Path(__file__).resolve().parents[1] / "sahf" / "sheaf" / "adapters.py").read_text()
+ROOT = Path(__file__).resolve().parents[1]
+
+src = (ROOT / "pipeline" / "stage_0_agent_ensemble.py").read_text()
 check(
     "hygiene",
     "no no-op branch in DirectHFAgent stop-id collection",
     'for extra in ("pad_token_id", "eot_token_id")' not in src,
     "loops over pad_token_id then discards it via `and extra == 'eot_token_id'`",
 )
+check(
+    "hygiene",
+    "UpstreamAgent imports Stage 1 from inside this package",
+    "from ..amplitude import" not in src,
+    "`from ..amplitude import ...` escapes the top-level package and raises "
+    "ImportError; Stage 1 lives in pipeline/stage_1_amplitude_interception.py",
+)
 
-demo_src = (Path(__file__).resolve().parents[1] / "sahf" / "sheaf" / "demo.py").read_text()
+demo_src = (ROOT / "runners" / "demo_sheaf_mock_run.py").read_text()
 check(
     "hygiene",
     "demo docstring points at the right module path",
     "sahf_sheaf.demo" not in demo_src,
-    "says `python -m sahf_sheaf.demo`; in this repo it is `python -m sahf.sheaf.demo`",
+    "says `python -m sahf_sheaf.demo`; in this repo it is "
+    "`python -m runners.demo_sheaf_mock_run`",
 )
 
 # =====================================================================

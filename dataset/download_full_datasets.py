@@ -1,11 +1,15 @@
+import argparse
 import os
-import json
+from pathlib import Path
+
 from datasets import load_dataset
 
+DEFAULT_DIR = Path(__file__).resolve().parent / "full_datasets"
+
 def download_full_dataset(dataset_name, config_name, splits, output_dir):
-    print(f"\n==========================================")
+    print("\n==========================================")
     print(f"Downloading full dataset: {dataset_name} (config: {config_name})")
-    print(f"==========================================")
+    print("==========================================")
     try:
         os.makedirs(output_dir, exist_ok=True)
         if config_name:
@@ -26,7 +30,12 @@ def download_full_dataset(dataset_name, config_name, splits, output_dir):
         print(f"Failed to download {dataset_name}: {str(e)}")
 
 def main():
-    base_dir = "/home/r4xok/Post_Grade_Project/TEMP/updated-shaf/dataset/full_datasets"
+    parser = argparse.ArgumentParser(description="Download the eval datasets in full.")
+    parser.add_argument("--out-dir", default=str(DEFAULT_DIR),
+                        help="Where to write the .jsonl exports. Defaults to dataset/full_datasets/.")
+    args = parser.parse_args()
+
+    base_dir = args.out_dir
     os.makedirs(base_dir, exist_ok=True)
     
     datasets_to_fetch = [

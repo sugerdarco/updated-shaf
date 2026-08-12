@@ -384,39 +384,6 @@ class SheafReconciler:
         # thin wrapper so the gate and reconcile share one implementation
         return node_stalks(covers, terms, node, child_arr, self.support_eps)
 
-    def _stalks_impl(
-        self,
-        tree: BytePrefixTree,
-        node: int,
-        covers: list[np.ndarray],
-        terms: list[np.ndarray],
-        child_arr: np.ndarray,
-    ) -> tuple[np.ndarray, list[int], list[int]]:
-        """Every agent's local section at `node`, restricted to the node's children.
-
-        A node has a handful of children, not 256, and the conditional is
-        structurally zero everywhere else -- so all the fusion algebra runs on
-        `len(children)` dimensions instead of 256. That is exact, and it is what
-        makes the per-node Weiszfeld iteration affordable.
-
-        Returns ``(sections[n_support, n_children], support, horizon)``.
-        """
-        rows: list[np.ndarray] = []
-        support: list[int] = []
-        horizon: list[int] = []
-        for a in range(len(covers)):
-            cont = float(covers[a][node] - terms[a][node])
-            if cont > self.support_eps:
-                row = covers[a][child_arr]
-                s = row.sum()
-                if s > 0:
-                    rows.append(row / s)
-                    support.append(a)
-            if terms[a][node] > self.support_eps:
-                horizon.append(a)
-        sections = np.stack(rows) if rows else np.zeros((0, child_arr.size))
-        return sections, support, horizon
-
     def reconcile(
         self,
         tree: BytePrefixTree,

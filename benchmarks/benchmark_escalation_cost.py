@@ -6,13 +6,12 @@ Geometric Median escalation versus fast path mean fusion.
 
 import time
 import torch
-import numpy as np
 
 from pipeline.stage_5_fast_mean_fusion import fast_mean_fusion
 from pipeline.stage_6_and_7_robust_escalation import detect_outliers, weiszfeld_geometric_median
 
 def run_escalation_benchmark(n_agents=3, dim=32000, n_trials=50):
-    print(f"--- Benchmarking Escalation Latency Cost ---")
+    print("--- Benchmarking Escalation Latency Cost ---")
     print(f"Agents: {n_agents}, Dimension: {dim}, Trials: {n_trials}")
 
     # Generate mock amplitude vectors

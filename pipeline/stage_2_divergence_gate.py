@@ -14,7 +14,7 @@ every single token is both slower and measurably worse (distributional drift) th
 fusing only where it's actually needed.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 
 import torch

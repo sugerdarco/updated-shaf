@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 from pipeline.stage_1_amplitude_interception import softmax_to_amplitude
 

@@ -30,7 +30,7 @@ VERIFY_SAMPLES = [
 
 def main():
     parser = argparse.ArgumentParser(description="Build Union Byte-Prefix Tree")
-    parser.add_argument("--config", default="config_sheaf.yaml")
+    parser.add_argument("--config", default=str(Path(__file__).resolve().parent / "config_sheaf.yaml"))
     parser.add_argument("--out", default=None, help="Artifact path (default: from config).")
     parser.add_argument("--max-depth", type=int, default=None,
                         help="Truncate tokens longer than this many bytes. Omit for exact.")

@@ -35,7 +35,7 @@ from pathlib import Path
 import torch
 import yaml
 
-from pipeline.stage_0_agent_ensemble import DirectHFAgent as HFAgent
+from pipeline.stage_0_agent_ensemble import DirectHFAgent as HFAgent, PoisonedAgentWrapper
 from pipeline.stage_2_divergence_gate import GateThresholds
 from utils.logger import RunLogger, setup_app_logging
 from prefix_tree_build.prefix_tree import BytePrefixTree
@@ -47,10 +47,12 @@ VERIFY_SAMPLES = [
     "def main():\n    return 1",
 ]
 
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "prefix_tree_build" / "config_sheaf.yaml"
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="config_sheaf.yaml")
+    parser.add_argument("--config", default=str(DEFAULT_CONFIG))
     parser.add_argument("--prompt", required=True)
     parser.add_argument("--run-label", default=None, help="Optional label appended to the run folder name.")
     parser.add_argument("--poison-index", type=int, default=None,
@@ -80,10 +82,28 @@ def main():
     raw_agents = [HFAgent(name, device=cfg["device"], dtype=dtype) for name in cfg["models"]]
 
     poison_info = None
-
     agents = raw_agents
 
-    vocab_sizes = {a.name: len(a._vocab.token_bytes) for a in agents}
+    if args.poison_index is not None:
+        if not 0 <= args.poison_index < len(raw_agents):
+            raise SystemExit(
+                f"--poison-index {args.poison_index} is out of range for "
+                f"{len(raw_agents)} agents (0..{len(raw_agents) - 1})."
+            )
+        agents = list(raw_agents)
+        target = agents[args.poison_index]
+        agents[args.poison_index] = PoisonedAgentWrapper(
+            target, mode=args.poison_mode, strength=args.poison_strength
+        )
+        poison_info = {
+            "index": args.poison_index,
+            "agent": target.name,
+            "mode": args.poison_mode,
+            "strength": args.poison_strength,
+        }
+        app_log.warning(f"Poisoning agent {args.poison_index} ({target.name}): {args.poison_mode}")
+
+    vocab_sizes = {a.name: a.vocab_spec().size for a in agents}
     app_log.info(f"Vocabularies: {vocab_sizes}")
 
     if not args.skip_verify:
@@ -100,19 +120,6 @@ def main():
         entropy=cfg["gate"]["entropy_threshold"],
         divergence=cfg["gate"]["divergence_threshold"],
     )
-
-    logger = RunLogger(out_dir=cfg.get("out_dir", "out"), run_label=args.run_label)
-    logger.log_meta({
-        "models": cfg["models"],
-        "prompt": args.prompt,
-        "config": cfg,
-        "poisoning": poison_info,
-        "stage8": True,
-        "prefix_tree": str(args.tree or sheaf_cfg.get("tree_path")) if tree is not None else None,
-        "vocab_sizes": vocab_sizes,
-        "schemes": {a.name: a.vocab_spec().scheme for a in agents},
-    })
-    app_log.info(f"Run directory: {logger.run_dir}")
 
     sheaf_cfg = cfg.get("sheaf", {})
 
@@ -133,6 +140,19 @@ def main():
                 "produce silently wrong output. Rebuild with build_prefix_tree.py."
             )
         app_log.info(f"Loaded prefix tree: {tree_path} ({tree.n_nodes:,} nodes)")
+
+    logger = RunLogger(out_dir=cfg.get("out_dir", "out"), run_label=args.run_label)
+    logger.log_meta({
+        "models": cfg["models"],
+        "prompt": args.prompt,
+        "config": cfg,
+        "poisoning": poison_info,
+        "stage8": True,
+        "prefix_tree": str(args.tree or sheaf_cfg.get("tree_path")) if tree is not None else None,
+        "vocab_sizes": vocab_sizes,
+        "schemes": {a.name: a.vocab_spec().scheme for a in agents},
+    })
+    app_log.info(f"Run directory: {logger.run_dir}")
 
     orchestrator = SheafOrchestrator(
         agents, thresholds,

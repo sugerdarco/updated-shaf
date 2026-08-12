@@ -11,23 +11,25 @@ Usage:
 """
 
 import argparse
-import json
 import os
 import time
 from pathlib import Path
 import torch
 import yaml
 
-from pipeline.stage_0_agent_ensemble import DirectHFAgent as HFAgent
+from pipeline.stage_0_agent_ensemble import DirectHFAgent as HFAgent, PoisonedAgentWrapper
 from pipeline.stage_2_divergence_gate import GateThresholds
 from utils.logger import RunLogger, setup_app_logging
 from prefix_tree_build.prefix_tree import BytePrefixTree
 from runners.sheaf_orchestrator import SheafOrchestrator
 
 
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "prefix_tree_build" / "config_sheaf.yaml"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run batch prompts through SAHF pipeline (models loaded once).")
-    parser.add_argument("--config", default="config_sheaf.yaml", help="Path to config yaml file.")
+    parser.add_argument("--config", default=str(DEFAULT_CONFIG), help="Path to config yaml file.")
     parser.add_argument("--prompts-file", default="prompts.txt", help="Text file containing prompts (one per line).")
     parser.add_argument("--run-label", default="batch_eval", help="Label for batch output folder.")
     parser.add_argument("--poison-index", type=int, default=None,
@@ -57,10 +59,30 @@ def main():
     raw_agents = [HFAgent(name, device=cfg["device"], dtype=dtype) for name in cfg["models"]]
 
     poison_info = None
-
     # Cross-tokenizer path: every agent keeps its own tokenizer and encodes the
     # shared context itself.
     agents = raw_agents
+
+    if args.poison_index is not None:
+        if not 0 <= args.poison_index < len(raw_agents):
+            raise SystemExit(
+                f"--poison-index {args.poison_index} is out of range for "
+                f"{len(raw_agents)} agents (0..{len(raw_agents) - 1})."
+            )
+        agents = list(raw_agents)
+        target = agents[args.poison_index]
+        agents[args.poison_index] = PoisonedAgentWrapper(
+            target, mode=args.poison_mode, strength=args.poison_strength
+        )
+        poison_info = {
+            "index": args.poison_index,
+            "agent": target.name,
+            "mode": args.poison_mode,
+            "strength": args.poison_strength,
+        }
+        app_log.warning(
+            f"Poisoning agent {args.poison_index} ({target.name}): {args.poison_mode}"
+        )
     vocab_info = [a.name for a in agents]
     app_log.info(f"Vocabularies: {vocab_info}")
 
@@ -94,9 +116,9 @@ def main():
     batch_results = []
 
     for idx, prompt in enumerate(prompts, 1):
-        print(f"\n==================================================")
+        print("\n==================================================")
         print(f"[{idx}/{len(prompts)}] Processing Prompt: {prompt!r}")
-        print(f"==================================================")
+        print("==================================================")
 
         run_label = f"{args.run_label}_p{idx}"
         logger = RunLogger(out_dir=cfg.get("out_dir", "out"), run_label=run_label)
@@ -138,7 +160,7 @@ def main():
             "fast_path_tokens": n_fast,
             "fusion_tokens": n_fusion,
             "escalated_tokens": n_escalated,
-            "log_dir": logger.run_dir,
+            "log_dir": str(logger.run_dir),
         }
         batch_results.append(result_summary)
 
@@ -146,9 +168,9 @@ def main():
         print(f"-> Stats: {len(history)} tokens generated ({n_fast} Fast-Path, {n_fusion} Fusion, {n_escalated} Escalated)")
 
     total_duration = time.time() - batch_start_time
-    print(f"\n==================================================")
+    print("\n==================================================")
     print(f"Batch evaluation complete! Processed {len(prompts)} prompts in {total_duration:.2f}s")
-    print(f"==================================================")
+    print("==================================================")
 
 
 if __name__ == "__main__":

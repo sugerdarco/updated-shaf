@@ -1,5 +1,4 @@
 import torch
-import pytest
 
 from pipeline.stage_5_fast_mean_fusion import fast_mean_fusion
 

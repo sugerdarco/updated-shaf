@@ -54,14 +54,33 @@ class DirectHFAgent:
     def __init__(
         self,
         name: str,
-        model,
-        tokenizer,
+        model=None,
+        tokenizer=None,
         *,
         temperature: float = 1.0,
         top_p: float | None = None,
         scheme: str = "auto",
         device: str | None = None,
+        dtype=None,
     ) -> None:
+        # `name` doubles as a HuggingFace repo id: the runners construct agents as
+        # DirectHFAgent(repo_id, device=..., dtype=...) straight from config_sheaf.yaml
+        # and never have a model object to hand. Loading here keeps that call
+        # working while the explicit (name, model, tokenizer) form is unchanged.
+        if model is None or tokenizer is None:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+
+            if tokenizer is None:
+                tokenizer = AutoTokenizer.from_pretrained(name)
+            if model is None:
+                kwargs = {}
+                if dtype is not None:
+                    kwargs["dtype"] = dtype
+                model = AutoModelForCausalLM.from_pretrained(name, **kwargs)
+                if device:
+                    model = model.to(device)
+                model.eval()
+
         self.name = name
         self.model = model
         self.tokenizer = tokenizer
@@ -147,6 +166,80 @@ class DirectHFAgent:
         if context not in self._stop_cache:
             self.next_token_probs(context)
         return self._stop_cache.get(context, 0.0)
+
+
+# --------------------------------------------------------------------------
+
+
+class PoisonedAgentWrapper:
+    """Deliberately corrupts one agent's distribution, to exercise Stage 6/7.
+
+    Honest models rarely disagree hard enough to trip the MAD screen, so the
+    escalation tier goes untested on real ensembles. This wraps any agent and
+    forwards everything except `next_token_probs`, which it corrupts.
+
+    The corruption is applied in LOG space and re-softmaxed, so the result is
+    still a proper distribution -- a poisoned agent must be well-formed and
+    wrong, not malformed. An agent returning a broken vector would be caught by
+    shape checks rather than by Stage 6, which is not what is being tested.
+
+    Modes
+    -----
+    invert        negate the log-probabilities: the agent's least likely
+                  continuations become its most likely ones.
+    uniform_noise add uniform noise of magnitude `strength` to every logit.
+    random_bias   add a fixed random bias vector, drawn once per wrapper, so the
+                  agent is consistently wrong rather than noisily wrong.
+    """
+
+    VALID_MODES = ("invert", "uniform_noise", "random_bias")
+
+    def __init__(self, agent, *, mode: str = "invert", strength: float = 25.0, seed: int = 0):
+        if mode not in self.VALID_MODES:
+            raise ValueError(f"unknown poison mode {mode!r}; expected one of {self.VALID_MODES}")
+        self._agent = agent
+        self.mode = mode
+        self.strength = float(strength)
+        self._rng = np.random.default_rng(seed)
+        self._bias: np.ndarray | None = None
+        self.name = f"{getattr(agent, 'name', 'agent')}-POISONED"
+        self.tokenizer = getattr(agent, "tokenizer", None)
+
+    def vocab_spec(self) -> VocabSpec:
+        return self._agent.vocab_spec()
+
+    def verify(self, samples) -> bool:
+        return self._agent.verify(samples)
+
+    def stop_probability(self, context: str) -> float:
+        # A poisoned agent must not be able to halt the run on its own.
+        return 0.0
+
+    def next_token_probs(self, context: str) -> np.ndarray:
+        p = np.asarray(self._agent.next_token_probs(context), dtype=np.float64)
+        logp = np.log(np.clip(p, 1e-300, None))
+
+        if self.mode == "invert":
+            z = -logp
+        elif self.mode == "uniform_noise":
+            z = logp + self._rng.uniform(-self.strength, self.strength, size=logp.shape)
+        else:  # random_bias
+            if self._bias is None or self._bias.shape != logp.shape:
+                self._bias = self._rng.normal(0.0, self.strength, size=logp.shape)
+            z = logp + self._bias
+
+        z -= z.max()
+        out = np.exp(z)
+        # Tokens the wrapped agent cannot emit at all stay unemittable: inverting
+        # log-probabilities would otherwise hand all the mass to padding ids that
+        # carry no byte image, and the poisoned agent would drop out of the tree
+        # entirely instead of fighting the honest ones inside it.
+        out[p <= 0.0] = 0.0
+        total = out.sum()
+        return out / total if total > 0 else p
+
+    def __getattr__(self, item):
+        return getattr(self._agent, item)
 
 
 # --------------------------------------------------------------------------
@@ -238,7 +331,7 @@ class UpstreamAgent:
         scheme: str = "auto",
         stop_token_ids: "set[int] | None" = None,
     ):
-        from ..amplitude import softmax_to_amplitude
+        from .stage_1_amplitude_interception import softmax_to_amplitude
 
         if getattr(agent, "tokenizer", None) is None:
             raise ValueError(
