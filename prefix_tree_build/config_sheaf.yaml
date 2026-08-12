@@ -1,7 +1,7 @@
 models:
-  - "Qwen/Qwen2.5-0.5B-Instruct"
-  - "google/gemma-2-2b-it"
-  - "meta-llama/Llama-3.2-1B-Instruct"
+  - "mistralai/Mistral-7B-Instruct-v0.2"
+  - "meta-llama/Llama-2-13b-chat-hf"
+  - "01-ai/Yi-6B-Chat"
 
 device: "cuda"
 dtype: "bfloat16"
