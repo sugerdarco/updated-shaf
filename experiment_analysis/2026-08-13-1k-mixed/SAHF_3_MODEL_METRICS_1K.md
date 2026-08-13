@@ -17,6 +17,7 @@
 * **Total Execution Time:** 8,548.19 seconds (2.37 hours)
 * **Average Time per Prompt:** 8.52 seconds
 * **Average Tokens per Prompt:** 60.05
+* **Throughput:** 7.05 tokens/sec (60,233 tokens / 8,548.19 s)
 
 **Analysis:** Despite the heavy computational overhead of projecting three distinct 32k+ vocabularies into a 160k-node prefix tree—and despite 89% of tokens triggering slow-path escalation—the system maintained an impressive execution speed of 8.52 seconds per prompt. Distributing the models across multiple GPUs (`cuda:1`, `cuda:2`, `cuda:3`) effectively removed memory bottlenecking.
 
