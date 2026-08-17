@@ -87,7 +87,7 @@ def load_triviaqa():
     return out
 
 
-def load_nq(max_scan=1500, cap=400):
+def load_nq(max_scan=6000, cap=1000):
     """NQ validation is ~470 MB with ~1 MB HTML per line; scan a bounded prefix and
     keep only questions that carry a short answer."""
     out = []
@@ -116,12 +116,15 @@ PLAN = [
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="eval/sample_100.jsonl")
+    ap.add_argument("--per-task", type=int, default=0,
+                    help="override: draw this many from every task (proportional scale-up)")
     args = ap.parse_args()
     rng = random.Random(SEED)
     sample = []
     for name, loader, n in PLAN:
+        want = args.per_task if args.per_task else n
         pool = loader()
-        pick = rng.sample(pool, min(n, len(pool)))
+        pick = rng.sample(pool, min(want, len(pool)))
         print(f"{name:9s} pool={len(pool):6d} picked={len(pick)}")
         sample.extend(pick)
     rng.shuffle(sample)
