@@ -21,6 +21,8 @@ from pipeline.stage_0_agent_ensemble import DirectHFAgent as HFAgent
 from pipeline.stage_2_divergence_gate import GateThresholds
 from prefix_tree_build.prefix_tree import BytePrefixTree
 from runners.sheaf_orchestrator import SheafOrchestrator
+from chat_agent import ChatTemplateAgent
+from deleg_orchestrator import DelegatingOrchestrator
 
 
 def main():
@@ -36,13 +38,18 @@ def main():
     ap.add_argument("--sharpen", type=float, default=1.0,
                     help="exponent on fused next-byte dist before decode (>1 sharpens)")
     ap.add_argument("--weights", default="", help="comma per-agent global weights, e.g. 1,1.5,1")
+    ap.add_argument("--chat", action="store_true", help="wrap each agent's context in its chat template")
+    ap.add_argument("--mode", default="fuse", choices=["fuse", "delegate", "agree_delegate"],
+                    help="fuse=byte averaging (base); agree_delegate=AGED (consensus when agents "
+                         "agree, most-confident agent otherwise); delegate=always most-confident")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(open(args.config))
     dtype = getattr(torch, cfg["dtype"])
     devs = args.devices.split(",")
-    print(f"Loading {len(cfg['models'])} agents on {devs} ...", flush=True)
-    agents = [HFAgent(n, device=d, dtype=dtype) for n, d in zip(cfg["models"], devs)]
+    AgentCls = ChatTemplateAgent if args.chat else HFAgent
+    print(f"Loading {len(cfg['models'])} agents ({AgentCls.__name__}) on {devs} ...", flush=True)
+    agents = [AgentCls(n, device=d, dtype=dtype) for n, d in zip(cfg["models"], devs)]
 
     tree = None
     tp = cfg["sheaf"].get("tree_path")
@@ -62,11 +69,19 @@ def main():
     t0 = time.time()
     for i, it in enumerate(items):
         body, max_new = build_prompt(it)
-        orch = SheafOrchestrator(
-            agents, th, weights=weights, max_new_bytes=max_new,
+        if args.chat:
+            for a in agents:
+                a.set_prompt(body)
+        common = dict(
+            weights=weights, max_new_bytes=max_new,
             mad_multiplier=cfg["gate"]["mad_multiplier"], k=cfg["sheaf"]["top_k"],
             min_support=cfg["sheaf"].get("min_support"), tree=tree, logger=None,
         )
+        if args.mode == "fuse":
+            orch = SheafOrchestrator(agents, th, **common)
+        else:
+            orch = DelegatingOrchestrator(
+                agents, th, delegate_on_agree=(args.mode == "delegate"), **common)
         for pl in (orch._path_a, orch._path_b):
             pl.reconciler.confidence_weight = args.confidence_weight
             pl.reconciler.conf_power = args.conf_power
