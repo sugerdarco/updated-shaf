@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Build a 100-prompt evaluation sample drawn proportionally from every DeePEn task.
+"""Build an evaluation prompt file from the DeePEn tasks.
 
-Six tasks, evaluation splits only (test/validation/dev), fixed seed, uniform-random
-within each task. Counts sum to 100:
+Extracts only {task, type, question, choices?, gold} — never the bulky context in
+the raw NQ/TriviaQA files — so a full-dataset prompt file is a few MB, not 163 GB.
 
-    arc 17 | mmlu 17 | gsm8k 17 | piqa 17 | triviaqa 16 | nq 16
-
-Unified per-line schema:
-    {"task","type","question","choices"?,"gold"}
-      type "mc":     choices=[str,...], gold=int index
-      type "number": gold=float
-      type "openqa": gold=[alias,...]
+Modes:
+  (default)        the fixed 100-prompt plan (17/17/17/17/16/16)
+  --per-task N     N per task
+  --strat --cap C  small tasks in full, large tasks (mmlu/triviaqa/nq) capped at C
+  --full           every eval-split prompt (no sampling)
 """
 import argparse
 import json
@@ -20,6 +18,9 @@ import re
 
 SEED = 42
 DATA = os.environ.get("DEEPEN_DIR", "/storage/riya/bhuvi-sahf-test/dataset/deepEn_dataset_1k")
+NQ_MAX_SCAN = 6000   # overridden for --full/--strat
+NQ_CAP = 1000
+BIG = {"mmlu", "triviaqa", "nq"}
 
 
 def _iter_jsonl(path, max_scan=None):
@@ -87,12 +88,10 @@ def load_triviaqa():
     return out
 
 
-def load_nq(max_scan=6000, cap=1000):
-    """NQ validation is ~470 MB with ~1 MB HTML per line; scan a bounded prefix and
-    keep only questions that carry a short answer."""
+def load_nq():
     out = []
     path = f"{DATA}/google-research-datasets_natural_questions_default_validation.jsonl"
-    for d in _iter_jsonl(path, max_scan=max_scan):
+    for d in _iter_jsonl(path, max_scan=NQ_MAX_SCAN):
         q = (d.get("question") or {}).get("text")
         texts = []
         for a in (d.get("annotations") or {}).get("short_answers") or []:
@@ -102,32 +101,43 @@ def load_nq(max_scan=6000, cap=1000):
         if q and texts:
             out.append({"task": "nq", "type": "openqa", "question": q,
                         "gold": list(dict.fromkeys(texts))})
-        if len(out) >= cap:
+        if len(out) >= NQ_CAP:
             break
     return out
 
 
-PLAN = [
-    ("arc", load_arc, 17), ("mmlu", load_mmlu, 17), ("gsm8k", load_gsm8k, 17),
-    ("piqa", load_piqa, 17), ("triviaqa", load_triviaqa, 16), ("nq", load_nq, 16),
-]
+PLAN = [("arc", load_arc, 17), ("mmlu", load_mmlu, 17), ("gsm8k", load_gsm8k, 17),
+        ("piqa", load_piqa, 17), ("triviaqa", load_triviaqa, 16), ("nq", load_nq, 16)]
 
 
 def main():
+    global NQ_MAX_SCAN, NQ_CAP
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="eval/sample_100.jsonl")
-    ap.add_argument("--per-task", type=int, default=0,
-                    help="override: draw this many from every task (proportional scale-up)")
+    ap.add_argument("--per-task", type=int, default=0)
+    ap.add_argument("--strat", action="store_true", help="small tasks full, big tasks capped at --cap")
+    ap.add_argument("--cap", type=int, default=2000)
+    ap.add_argument("--full", action="store_true", help="every eval-split prompt, no sampling")
     args = ap.parse_args()
+    if args.full or args.strat:
+        NQ_MAX_SCAN, NQ_CAP = 10**9, 10**9  # scan the whole NQ val file
+
     rng = random.Random(SEED)
     sample = []
     for name, loader, n in PLAN:
-        want = args.per_task if args.per_task else n
         pool = loader()
-        pick = rng.sample(pool, min(want, len(pool)))
-        print(f"{name:9s} pool={len(pool):6d} picked={len(pick)}")
+        if args.full:
+            pick = pool
+        elif args.strat:
+            want = args.cap if name in BIG else len(pool)
+            pick = rng.sample(pool, min(want, len(pool)))
+        else:
+            want = args.per_task if args.per_task else n
+            pick = rng.sample(pool, min(want, len(pool)))
+        print(f"{name:9s} pool={len(pool):7d} picked={len(pick)}")
         sample.extend(pick)
-    rng.shuffle(sample)
+    if not args.full:
+        rng.shuffle(sample)
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
         for it in sample:
