@@ -24,16 +24,25 @@ def _norm(s: str) -> str:
 def score_mc(item, gen: str) -> bool:
     n = len(item["choices"])
     gold = chr(65 + int(item["gold"]))
-    up = chr(64 + n)  # last valid letter, e.g. 'D' for 4 choices
-    # 1. explicit statement: "answer is B", "answer: (C)"  -> take the LAST one
-    m = re.findall(rf"answer(?:\s+is|:)?\s*\(?([A-{up}])\)?\b", gen, re.I)
+    L = f"A-{chr(64 + n)}"  # valid letter class, e.g. 'A-D' for 4 choices
+    # 1. after an "answer" cue, first letter through any punctuation:
+    #    matches "Answer: B", "Answer:: B", "Answer:* D", "the answer is C".
+    m = re.findall(rf"answer\W*(?:is\W*)?([{L}])(?![A-Za-z])", gen, re.I)
     if m:
         return m[-1].upper() == gold
-    # 2. a letter tagged as a choice: "B)", "C.", "(D)", "B:"  -> first
-    m = re.findall(rf"(?<![A-Za-z])\(?([A-{up}])[)\].:]", gen)
+    # 2. "option/choice X"
+    m = re.findall(rf"(?:option|choice)\W*([{L}])(?![A-Za-z])", gen, re.I)
     if m:
         return m[0].upper() == gold
-    # 3. fall back to the longest matching choice text
+    # 3. a letter tagged as a choice: "(B)", "B)", "C.", "D:"
+    m = re.findall(rf"(?<![A-Za-z])\(?([{L}])[)\].:]", gen)
+    if m:
+        return m[0].upper() == gold
+    # 4. a lone letter (start of answer or isolated by non-alphanumerics)
+    m = re.findall(rf"(?<![A-Za-z0-9])([{L}])(?![A-Za-z0-9])", gen)
+    if m:
+        return m[0].upper() == gold
+    # 5. fall back to the longest matching choice text
     ng = _norm(gen)
     best, blen = -1, 0
     for i, c in enumerate(item["choices"]):

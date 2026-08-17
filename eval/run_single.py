@@ -62,7 +62,7 @@ def main():
         d = by_task.setdefault(it["task"], [0, 0])
         d[0] += ok
         d[1] += 1
-        results.append({"task": it["task"], "type": it["type"], "correct": ok, "gen": gen[:600]})
+        results.append({"item": it, "correct": ok, "gen": gen})
         if (i + 1) % 10 == 0:
             print(f"[{i+1}/{len(items)}] running acc={correct/(i+1)*100:.1f}%", flush=True)
 
