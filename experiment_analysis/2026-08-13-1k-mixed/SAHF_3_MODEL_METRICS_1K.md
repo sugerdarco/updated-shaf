@@ -21,5 +21,14 @@
 
 **Analysis:** Despite the heavy computational overhead of projecting three distinct 32k+ vocabularies into a 160k-node prefix tree—and despite 89% of tokens triggering slow-path escalation—the system maintained an impressive execution speed of 8.52 seconds per prompt. Distributing the models across multiple GPUs (`cuda:1`, `cuda:2`, `cuda:3`) effectively removed memory bottlenecking.
 
-## 4. Architecture Verification
+## 4. Dataset Accuracy (GSM8K Exact-Match)
+* **Evaluated:** 100 Prompts (GSM8K Math)
+* **Correct:** 2
+* **Accuracy:** `2.0%`
+
+**Analysis:** The accuracy completely collapsed for two critical reasons:
+1. **Severe Byte Bloat / Spelling Artifacts:** The cross-tokenizer interference caused massive stuttering and grammatical anomalies (e.g., `"We known that there area totally of Grade five students, which is equal too 200"`), destroying the chain-of-thought logic.
+2. **Context Truncation (`max_new_bytes=256`):** Because of the spelling bloat, the models never reached the final mathematical conclusion before hitting the 256-byte limit, causing the evaluation script to extract intermediate reasoning numbers instead of the final answer.
+
+## 5. Architecture Verification
 **Analysis:** The most significant metric is the successful execution of 1,003 prompts without any out-of-bounds or vocabulary indexing errors. The `run_batch_prompts.py` pipeline successfully processed complex prompts across diverse datasets (GSM8K, MMLU, TriviaQA, ARC, PIQA). This empirically validates that the Stage 8 integration successfully forced the three disparate tokenizers into a unified byte-prefix tree architecture.
