@@ -30,6 +30,12 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--devices", default="cuda:7,cuda:3,cuda:2")
     ap.add_argument("--limit", type=int, default=0, help="only first N prompts (debug)")
+    ap.add_argument("--confidence-weight", action="store_true",
+                    help="weight each agent's byte vote by its section peakedness")
+    ap.add_argument("--conf-power", type=float, default=1.0)
+    ap.add_argument("--sharpen", type=float, default=1.0,
+                    help="exponent on fused next-byte dist before decode (>1 sharpens)")
+    ap.add_argument("--weights", default="", help="comma per-agent global weights, e.g. 1,1.5,1")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(open(args.config))
@@ -45,6 +51,9 @@ def main():
         print(f"Loaded prefix tree: {tp} ({tree.n_nodes:,} nodes)", flush=True)
     th = GateThresholds(entropy=cfg["gate"]["entropy_threshold"],
                         divergence=cfg["gate"]["divergence_threshold"])
+    weights = [float(x) for x in args.weights.split(",")] if args.weights else None
+    print(f"fusion knobs: confidence_weight={args.confidence_weight} "
+          f"conf_power={args.conf_power} sharpen={args.sharpen} weights={weights}", flush=True)
 
     items = [json.loads(l) for l in open(args.sample) if l.strip()]
     if args.limit:
@@ -54,10 +63,14 @@ def main():
     for i, it in enumerate(items):
         body, max_new = build_prompt(it)
         orch = SheafOrchestrator(
-            agents, th, max_new_bytes=max_new,
+            agents, th, weights=weights, max_new_bytes=max_new,
             mad_multiplier=cfg["gate"]["mad_multiplier"], k=cfg["sheaf"]["top_k"],
             min_support=cfg["sheaf"].get("min_support"), tree=tree, logger=None,
         )
+        for pl in (orch._path_a, orch._path_b):
+            pl.reconciler.confidence_weight = args.confidence_weight
+            pl.reconciler.conf_power = args.conf_power
+            pl.reconciler.sharpen = args.sharpen
         full, hist = orch.generate(body)
         gen = full[len(body):] if full.startswith(body) else full
         ok = bool(scoring.score_item(it, gen))
@@ -65,8 +78,7 @@ def main():
         d = by_task.setdefault(it["task"], [0, 0])
         d[0] += ok
         d[1] += 1
-        results.append({"task": it["task"], "type": it["type"], "correct": ok,
-                        "steps": len(hist), "gen": gen[:600]})
+        results.append({"item": it, "correct": ok, "steps": len(hist), "gen": gen})
         print(f"[{i+1}/{len(items)}] {it['task']:8s} ok={int(ok)} "
               f"acc={correct/(i+1)*100:.1f}% ({time.time()-t0:.0f}s)", flush=True)
 

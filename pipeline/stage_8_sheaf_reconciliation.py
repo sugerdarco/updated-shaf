@@ -363,6 +363,9 @@ class SheafReconciler:
         mad_multiplier: float = 3.0,
         max_depth: int | None = None,
         agree_tol: float = 1e-9,
+        confidence_weight: bool = False,
+        conf_power: float = 1.0,
+        sharpen: float = 1.0,
     ) -> None:
         if fusion not in ("mean", "geometric_median", "auto"):
             raise ValueError(f"unknown fusion mode {fusion!r}")
@@ -372,6 +375,18 @@ class SheafReconciler:
         self.mad_multiplier = mad_multiplier
         self.max_depth = max_depth
         self.agree_tol = agree_tol
+        # Byte-bloat mitigation (all no-ops at their defaults, so parity tests
+        # that pin Stage 6/7 numerics are unaffected):
+        #   confidence_weight  weight each agent's vote at a node by how peaked its
+        #                      own next-byte section is, so a model that is sure of
+        #                      the spelling dominates a diffuse one instead of the
+        #                      two averaging into a misspelling.
+        #   conf_power         exponent on that confidence weight (sharper routing).
+        #   sharpen            exponent applied to the fused next-byte distribution
+        #                      before decode; >1 pulls mass onto the argmax byte.
+        self.confidence_weight = confidence_weight
+        self.conf_power = conf_power
+        self.sharpen = sharpen
 
     def _stalks(
         self,
@@ -468,6 +483,13 @@ class SheafReconciler:
                 disagreement = float(dmat.max())
 
                 w = w_global[support]
+                if self.confidence_weight:
+                    # peakedness of each surviving section (max prob) as a vote
+                    # weight: a model certain of the next byte outvotes a diffuse
+                    # one, so the consensus keeps that model's spelling rather than
+                    # blending two into a byte neither meant.
+                    conf = sections.max(axis=1) ** self.conf_power
+                    w = w * conf
                 w = w / w.sum()
 
                 if disagreement <= self.agree_tol:
@@ -481,6 +503,11 @@ class SheafReconciler:
                         psi_star = geometric_median(psis, w)
                         escalated = True
                 fused = to_probability(psi_star)  # over this node's children only
+                if self.sharpen != 1.0:
+                    fused = fused ** self.sharpen
+                    s = fused.sum()
+                    if s > 0:
+                        fused = fused / s
             cond = np.zeros(BYTE_DIM, dtype=np.float64)
             cond[byte_arr] = fused
             conditionals[node] = cond
