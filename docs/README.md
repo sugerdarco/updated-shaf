@@ -9,8 +9,10 @@ docs/
 ├── README.md                          # This index
 ├── DECOUPLED_ARCHITECTURE_SPEC.md     # Byte-fusion (Stage 0–8) cross-tokenizer architecture
 ├── RUNTIME_PERFORMANCE.md             # Latency/memory of the byte-fusion pipeline
-└── EWC_METHOD.md                      # Endorsement-Weighted Consensus — the method that beats
-                                       # the single-model baseline (accuracy)
+├── CES_METHOD.md                      # Cross-Endorsement Selection — answer-space selector
+│                                      # (renamed off "EWC"); the honest method spec
+└── ANALYSIS.md                        # Honest evaluation: byte-fusion fails, voting is most of
+                                       # the gain, significance + length ablation + prior art
 ```
 
 ## Two layers of the project
@@ -19,12 +21,13 @@ docs/
    SAHF architecture that reconciles mismatched tokenizers by fusing next-byte distributions
    on a shared byte-prefix tree. See `DECOUPLED_ARCHITECTURE_SPEC.md` and `RUNTIME_PERFORMANCE.md`.
 
-2. **Accuracy evaluation & ensemble reconciliation** (`eval/`) — added to answer whether the
-   ensemble actually *beats the best single model*. It does, but not via byte fusion (which
-   collapses to ~36% through "byte-bloat"): the winning method is **Endorsement-Weighted
-   Consensus**, specified in [`EWC_METHOD.md`](EWC_METHOD.md) and documented with usage in
-   [`../eval/README.md`](../eval/README.md). Empirical write-ups live in
-   [`../experiment_analysis/2026-08-18-*`](../experiment_analysis).
+2. **Accuracy evaluation & answer-space selection** (`eval/`) — added to test whether the
+   ensemble *beats the best single model*. It does, but not via byte fusion (which collapses to
+   ~36% through "byte-bloat"): a trivial answer-space selector wins, and **most of the gain is
+   plain majority voting**. Method spec: [`CES_METHOD.md`](CES_METHOD.md); honest evaluation
+   (decomposition, significance, length ablation, prior art): [`ANALYSIS.md`](ANALYSIS.md);
+   usage: [`../eval/README.md`](../eval/README.md).
 
-**Headline result (full DeePEn eval set, 40,604 prompts):** EWC 63.17% vs best single model
-61.31%.
+**Headline (full DeePEn eval set, 40,604 prompts):** best single 61.32% → voting 62.78% →
+CES 63.17%; byte-fusion ~36%. This is framed as a **negative-result / analysis** study; see
+`ANALYSIS.md` for the honest read and the open work (DeePEn reproduction, modern models).

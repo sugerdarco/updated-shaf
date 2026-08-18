@@ -8,20 +8,25 @@ directory closes that gap and answers the project's actual question:
 > Can a multi-agent ensemble of heterogeneous, mismatched-tokenizer LLMs beat the
 > best single model's accuracy?
 
-**Answer: yes — with Endorsement-Weighted Consensus (EWC).** The original
-byte-level fusion cannot (it collapses to ~36% via "byte-bloat"); moving
-reconciliation from *byte space* to *answer space* is what wins.
+**Answer: yes — but by moving reconciliation from *byte space* to *answer space*, and
+mostly via plain voting.** Byte-level fusion collapses to ~36% ("byte-bloat"); a trivial
+answer-space selector beats it and the best single model.
 
-## Result at a glance
+## Result at a glance (full 40,604-prompt eval)
 
-| Scale | Best single | Byte-fusion (SAHF) | **EWC (ours)** |
-|---|---:|---:|---:|
-| 100-prompt sample | 57% | 36% | **63%** |
-| 1,200-prompt sample | 54.8% | — | **57.5%** |
-| **Full 40,604 (DeePEn eval set)** | **61.31%** | — | **63.17%** |
+| method | acc | vs best single |
+|---|---:|---:|
+| best single (Mistral-7B) | 61.32% | — |
+| byte-space fusion (SAHF) | ~36% | −25 |
+| **majority voting** (`vote.py`) | **62.78%** | +1.46 |
+| **CES** (`ces.py --hybrid`) | **63.17%** | +1.85 |
+| — CES over voting | | +0.39 |
 
-Full write-ups in [`../experiment_analysis/2026-08-18-*`](../experiment_analysis).
-The method itself is specified in [`../docs/EWC_METHOD.md`](../docs/EWC_METHOD.md).
+**~79% of the gain over best-single is plain voting.** Read the honest decomposition,
+significance tests, and length-confound ablation in
+[`../docs/ANALYSIS.md`](../docs/ANALYSIS.md); the method (renamed off "EWC") is in
+[`../docs/CES_METHOD.md`](../docs/CES_METHOD.md). Dated write-ups (which use the earlier
+over-claimed framing) are in [`../experiment_analysis`](../experiment_analysis).
 
 ## The tasks & scoring
 
