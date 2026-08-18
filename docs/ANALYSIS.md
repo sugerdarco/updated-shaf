@@ -27,11 +27,12 @@ recomputed from the saved 40,604-prompt generations by `eval/paper_analysis.py`.
   (modern)** — same sign across two model generations, robust to the length-confound ablation, but
   marginal. *(An earlier draft claimed a +6.19pp modern-models "inversion"; that was an artifact of
   an order-dependent open-QA voting tie-break and has been retracted — see §5.)*
-- **Sharper still: nearly all the gain over the best single model is answer-TYPE routing.** No
-  single model is best at both discrete and free-form answers, so a trivial dev-split router ("best
-  model for MC/numeric, best model for open-QA", 20 seeds) matches or beats CES — modern **69.19 ≥
-  CES 69.11** (n.s.), 2023-era 62.86 vs CES 63.17 (+0.31, p=0.045). CES is functionally an implicit
-  type router; byte-fusion/voting/endorsement add little beyond routing. See §2b and
+- **Sharper still: CES has no distinct advantage over trivial baselines.** Two dev-split (20-seed)
+  baselines each match or beat it: an **answer-type router** ("best model for MC/numeric, best model
+  for open-QA") — modern 69.19 ≥ CES 69.11 (n.s.), 2023-era 62.86 vs 63.17 (+0.31, p=0.045); and
+  **reliability-weighted majority voting** — 2023-era 63.11 vs CES 63.17, modern 69.16 vs CES 69.11
+  (both within ±0.2 seed noise). No single model is best at both answer types, so nearly all the
+  ensemble gain over the best single model is answer-**type routing**. See §2b and
   [`../experiment_analysis/2026-08-18-type-router/RESULTS_ROUTER.md`](../experiment_analysis/2026-08-18-type-router/RESULTS_ROUTER.md).
 
 **Implication for framing:** this is a **negative-result / analysis** paper. Its contribution is
@@ -158,9 +159,9 @@ generations, length-robust, but marginal. There is no regime-dependent inversion
 
 ## 6. Limitations / open work
 
-1. **Weighted majority voting — highest priority.** The textbook fix for a dominant model being
-   outvoted (the exact §5 phenomenon). If weighted voting also handles the modern trio, the
-   endorsement component has no room left as a distinct contribution. Not yet run.
+1. **Weighted majority voting — done.** Reliability-weighted vote (dev-split, 20 seeds) ties CES on
+   both trios (2023-era 63.11 vs 63.17; modern 69.16 vs 69.11). Together with the type-router (§2b),
+   this confirms CES has **no distinct room** over standard baselines. `eval/weighted_vote.py`.
 2. **Answer-type router baseline — done (§2b).** Dev-split, matches/beats CES; folded into the
    thesis. A principled open-QA voting baseline is still ill-defined (the order-dependent tie-break
    is not fair, §5); endorsement vs best-single-on-open-QA is the honest comparison (+0.16–0.49pp).

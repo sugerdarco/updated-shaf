@@ -45,6 +45,19 @@ two-number heuristic needing no task labels at test time. Byte-fusion, majority 
 likelihood-endorsement selection add little beyond it. The honest residual for the novel
 endorsement mechanism is unchanged: **+0.16 to +0.49pp on open-QA**, same sign twice, length-robust.
 
+## Reliability-weighted voting also ties CES
+
+The other standard baseline (each model weighted by its dev-half per-type accuracy; discrete =
+weighted majority, open-QA = defer to the most-reliable model), 20 seeds:
+
+| | CES | weighted-vote (dev-split) |
+|---|---:|---:|
+| 2023-era | 63.17 | 63.11 ±0.21 |
+| modern | 69.11 | 69.16 ±0.21 |
+
+Within seed noise. So **CES ≈ type-router ≈ weighted voting** — the likelihood-endorsement mechanism
+has no distinct advantage over standard baselines. (`eval/weighted_vote.py`.)
+
 ## Thesis (updated)
 On a mixed-benchmark suite of heterogeneous, mismatched-tokenizer LLMs, the ensemble's advantage
 over its best single member is **primarily answer-type routing**, not distribution fusion or
