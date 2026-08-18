@@ -139,8 +139,8 @@ generations, length-robust, but marginal. There is no regime-dependent inversion
 3. **PairRanker / LLM-Blender and MBR** as selection baselines — cited (§4) but not run.
 4. **DeePEn at scale** — done only scoped (GSM8K, 50 items, 2 models, 13B baseline incomplete);
    scale to full test sets + all six benchmarks + the missing baseline.
-5. **Statistics / data** — McNemar reported; add seeds/CIs. Ship the raw 40k generation JSONs (or a
-   hash-verified subset) — currently `eval/out/` is gitignored, so results aren't independently
-   checkable from the repo alone.
+5. **Statistics / data** — McNemar reported; add seeds/CIs. Compact per-prompt correctness for both
+   40k runs is now shipped in `eval/results_export/` (per model + CES; recompute any headline number
+   with `eval/export_results.py`'s schema). Full generations remain local (gitignored).
 6. **Naming / scope** — renamed off "EWC" (Elastic Weight Consolidation collision); the
    `ces_batched == ces` parity holds only for odd N. Models are 2023/2024-era; no scaling-law claim.
