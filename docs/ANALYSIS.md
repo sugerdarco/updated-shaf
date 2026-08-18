@@ -19,14 +19,20 @@ recomputed from the saved 40,604-prompt generations by `eval/paper_analysis.py`.
   | — CES *over voting* | | +0.39 | p = 3.9e-4 |
   | oracle any-correct ceiling | 76.62% | | |
 
-- **~79% of the gain over the best single model is plain voting** (a textbook method). The
-  only genuinely non-voting component (likelihood endorsement for open-QA) contributes
-  **+0.39pp overall** — statistically significant but small.
+- **On these 2023-era, complementary models, ~79% of the gain over the best single model is
+  plain voting**; the non-voting likelihood-endorsement component adds only **+0.39pp** overall.
+- **But that is regime-dependent — and the regime that matters flips the conclusion.** On a
+  2024-era trio where one model dominates (Llama-3.1-8B 68.1% vs Mistral-v0.3 63.9% / Qwen2.5
+  61.0%), **plain voting FAILS — 62.92%, five points *below* the best single model** — while
+  **CES beats it (69.11%, p=1e-7)** and CES-over-voting is **+6.19pp (p≈0)**. Here the
+  likelihood-endorsement branch is not a rounding error; it is the *decisive* mechanism (see §5).
 
-**Implication for framing:** this is not a method paper about a new ensemble algorithm. The
-publishable contribution is the **negative result + the demonstration that a trivial
-answer-space baseline beats an elaborate distribution-space method** on heterogeneous,
-mismatched-tokenizer LLMs — provided the DeePEn reproduction (below) supports it.
+**Implication for framing:** the honest contribution is two-fold — (1) the **negative result**
+that distribution-space byte fusion collapses while a trivial answer-space baseline beats it and
+the best single model; and (2) the **regime analysis**: answer-space *voting* suffices when
+models are complementary, but **likelihood-endorsement selection is essential when one modern
+model dominates** — exactly the realistic case. The DeePEn reproduction (below) tests whether the
+distribution-space paradigm itself fails or only our byte-tree instantiation.
 
 ## 1. Why byte-space fusion fails (the negative result)
 
@@ -93,7 +99,26 @@ length** — pure length selection underperforms it.
 - **Weighted majority voting** — the natural fix for the PIQA regression (76.1 → 71.1 when a
   dominant model is outvoted) is decades-old weighted voting, not novel.
 
-## 5. Limitations / open work
+## 5. Modern models: the endorsement mechanism becomes decisive
+
+Repeating the full 40,604-prompt evaluation on a 2024-era trio (Qwen2.5-7B, Llama-3.1-8B,
+Mistral-7B-v0.3 — three distinct tokenizers) inverts the §2 conclusion. Full write-up:
+[`../experiment_analysis/2026-08-18-modern-models/RESULTS_MODERN.md`](../experiment_analysis/2026-08-18-modern-models/RESULTS_MODERN.md).
+
+| method | acc | vs best single |
+|---|---:|---:|
+| best single (Llama-3.1-8B) | 68.13% | — |
+| plain voting | 62.92% | **−5.21** (fails) |
+| CES | 69.11% | **+0.98** (p = 1e-7) |
+| — CES over voting | | **+6.19** (p ≈ 0) |
+
+Here one model dominates, so majority voting is dragged *below* the best single model. On open-QA
+voting loses 2,561 items vs best-single while endorsement is +40 — a +2,601-item swing. **The
+likelihood-endorsement branch is decisive, not marginal, in this regime**, and again not a length
+artifact (endorsement 65.6% vs longest 61.2% / shortest 55.0%). Contribution strength is
+model-regime-dependent — which is itself a reportable finding.
+
+## 6. Limitations / open work
 
 1. **DeePEn reproduction** (pivotal — decides "our instantiation fails" vs "paradigm fails").
 2. **Modern models** — results are on 2023-era Llama-2-13B / Mistral-7B-v0.2 / Yi-6B; needs

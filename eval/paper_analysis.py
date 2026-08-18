@@ -2,6 +2,7 @@
 """All the numbers the paper needs, from the saved 40k generations (CPU only):
 baselines, voting, CES, oracle, branch decomposition, McNemar significance, and the
 open-QA length-confound ablation."""
+import argparse
 import collections
 import json
 import sys
@@ -10,8 +11,16 @@ from math import erfc, sqrt
 sys.path.insert(0, "eval")
 import scoring
 
-D = [json.load(open(f"eval/out/full_{m}.json")) for m in ("mistral", "llama", "yi")]
-E = json.load(open("eval/out/ewc_full.json"))
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--cands", nargs=3,
+                 default=["eval/out/full_mistral.json", "eval/out/full_llama.json", "eval/out/full_yi.json"])
+_ap.add_argument("--ces", default="eval/out/ewc_full.json")
+_ap.add_argument("--names", default="mistral,llama,yi")
+_a = _ap.parse_args()
+_names = _a.names.split(",")
+
+D = [json.load(open(f)) for f in _a.cands]
+E = json.load(open(_a.ces))
 n = len(D[0]["results"])
 items = [D[0]["results"][i]["item"] for i in range(n)]
 gens = [[D[m]["results"][i]["gen"] for m in range(3)] for i in range(n)]
@@ -56,7 +65,8 @@ for i in range(n):
 ces_ok = [bool(r["correct"]) for r in E["results"]]
 
 print(f"n={n}")
-print(f"single: mistral={single_acc[0]:.2f} llama={single_acc[1]:.2f} yi={single_acc[2]:.2f} | best=model{best_m} {single_acc[best_m]:.2f}")
+print("single: " + " ".join(f"{_names[m]}={single_acc[m]:.2f}" for m in range(3)) +
+      f" | best={_names[best_m]} {single_acc[best_m]:.2f}")
 print(f"voting={sum(vote_ok)/n*100:.2f}  CES={sum(ces_ok)/n*100:.2f}  oracle={sum(any(single_ok[m][i] for m in range(3)) for i in range(n))/n*100:.2f}")
 print("--- significance ---")
 for name, a in (("CES vs best", best_ok), ("CES vs voting", vote_ok)):
