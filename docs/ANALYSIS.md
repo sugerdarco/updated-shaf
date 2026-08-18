@@ -61,12 +61,14 @@ only as an agreement sensor and delegate divergent steps to the most-confident a
 multi-step reasoning mid-chain. (`eval/deleg_orchestrator.py`.)
 
 **Narrowed by reproduction (§6):** DeePEn does distribution averaging in a *relative-representation*
-space. We ran DeePEn's released code on our own models (scoped: GSM8K, 50 items, Llama-2 + Mistral).
-It produces **correct, coherently-spelled** answers — no byte-bloat. (The 44% on 50 items is
-indicative only, and the 13B single-model baseline is incomplete, so we claim **no** numeric gain.)
-The qualitative point is what matters: relative-space fusion is **not** broken on our exact models,
-so the byte-bloat collapse is specific to *our byte-tree instantiation* (averaging next-*byte*
-distributions yields an argmax no model intended). See
+space. We ran DeePEn's released code on our own models. On **full ARC-Challenge (1,172 items)**,
+DeePEn's faithful method (learned weights, lr=0.5) scores **73.9% — tying the best single model
+(73.8%)** — with every one of the 1,172 outputs a clean, valid letter (no byte-bloat). (Uniform-weight
+fusion, lr=0.0, gets 64.2%, dragged toward the weaker model — a config caveat, not the method.) So
+relative-space fusion is coherent **and** competitive at full-task scale; the byte-bloat collapse is
+specific to *our byte-tree instantiation* (averaging next-*byte* distributions yields an argmax no
+model intended). Notably it only *ties*, not beats, the best single model — consistent with §2b
+(distribution fusion is not the win; answer-type routing is). See
 [`../experiment_analysis/2026-08-18-deepen/RESULTS_DEEPEN.md`](../experiment_analysis/2026-08-18-deepen/RESULTS_DEEPEN.md).
 
 ## 2. Answer-space selection
