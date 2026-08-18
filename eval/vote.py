@@ -19,19 +19,37 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import scoring
 
 
-def vote(items_type, preds):
-    """preds is in model-priority order; None means that model abstained."""
+def vote_choice(preds):
+    """Majority vote over discrete predictions (MC letters / numbers).
+
+    preds is in model-priority order; None = abstain; ties break to priority."""
     valid = [p for p in preds if p is not None]
     if not valid:
         return None
-    key = (lambda p: scoring._norm(str(p))) if items_type == "openqa" else (lambda p: p)
-    counts = collections.Counter(key(p) for p in valid)
+    counts = collections.Counter(valid)
     best = max(counts.values())
     winners = {k for k, c in counts.items() if c == best}
-    for p in valid:  # priority order -> first model whose answer is a top vote
-        if key(p) in winners:
+    for p in valid:
+        if p in winners:
             return p
     return valid[0]
+
+
+def openqa_choice_idx(shorts):
+    """Pick which model's answer to trust for open QA (no gold peeking).
+
+    If >=2 models give the same normalized short answer, trust the earliest of
+    those; otherwise trust the highest-priority model. The FULL generation of the
+    chosen model is then scored, so this never underperforms that model alone."""
+    counts = collections.Counter(s for s in shorts if s)
+    if counts:
+        best = max(counts.values())
+        if best >= 2:
+            winners = {k for k, c in counts.items() if c == best}
+            for idx, s in enumerate(shorts):
+                if s in winners:
+                    return idx
+    return 0
 
 
 def main():
@@ -42,9 +60,13 @@ def main():
     by = collections.defaultdict(lambda: [0, 0])
     for i in range(n):
         item = data[0]["results"][i]["item"]
-        preds = [scoring.predict_item(d["results"][i]["item"], d["results"][i]["gen"]) for d in data]
-        voted = vote(item["type"], preds)
-        ok = bool(scoring.score_prediction(item, voted))
+        gens = [d["results"][i]["gen"] for d in data]
+        if item["type"] in ("mc", "number"):
+            preds = [scoring.predict_item(item, g) for g in gens]
+            ok = bool(scoring.score_prediction(item, vote_choice(preds)))
+        else:  # open QA: score the chosen model's full generation
+            shorts = [scoring._norm(scoring.predict_openqa(item, g)) for g in gens]
+            ok = bool(scoring.score_openqa(item, gens[openqa_choice_idx(shorts)]))
         correct += ok
         by[item["task"]][0] += ok
         by[item["task"]][1] += 1
