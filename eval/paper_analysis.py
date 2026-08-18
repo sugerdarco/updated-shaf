@@ -98,3 +98,25 @@ print(f"per-model oq acc: {[round(x,2) for x in sm_acc]}")
 print(f"select longest  : {long_acc:.2f}   select shortest: {short_acc:.2f}")
 print(f"endorsement sel : {end_acc:.2f}")
 print(f"mean words: chosen={sum(chosen_len)/len(chosen_len):.1f}  all-candidates={sum(cand_len)/len(cand_len):.1f}")
+
+# ---- honest measures (open-QA voting is order-dependent; do NOT use it as a baseline) ----
+best_oq = max(sm_acc)
+print("--- HONEST (order-independent) measures ---")
+print(f"open-QA endorsement={end_acc:.2f} vs best-single-model-oq={best_oq:.2f}  delta={end_acc-best_oq:+.2f}")
+best_gen_m = max(range(3), key=lambda m: single_acc[m])
+vote_fair = []
+for i in range(n):
+    it = items[i]
+    if it["type"] in ("mc", "number"):
+        vote_fair.append(vote_ok[i])   # discrete majority is order-independent
+    else:
+        shorts = [scoring._norm(scoring.predict_openqa(it, gens[i][m])) for m in range(3)]
+        cnt = collections.Counter(s for s in shorts if s)
+        if cnt and max(cnt.values()) >= 2:
+            win = {k for k, c in cnt.items() if c == max(cnt.values())}
+            idx = next(j for j, s in enumerate(shorts) if s in win)
+        else:
+            idx = best_gen_m            # FAIR open-QA fallback = best single model (not arg-0)
+        vote_fair.append(bool(scoring.score_openqa(it, gens[i][idx])))
+print(f"voting[FAIR open-QA fallback=best model]={sum(vote_fair)/n*100:.2f}  vs CES={sum(ces_ok)/n*100:.2f}  "
+      f"(the as-given-order voting above is order-dependent and not a fair baseline)")

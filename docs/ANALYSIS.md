@@ -19,20 +19,21 @@ recomputed from the saved 40,604-prompt generations by `eval/paper_analysis.py`.
   | — CES *over voting* | | +0.39 | p = 3.9e-4 |
   | oracle any-correct ceiling | 76.62% | | |
 
-- **On these 2023-era, complementary models, ~79% of the gain over the best single model is
-  plain voting**; the non-voting likelihood-endorsement component adds only **+0.39pp** overall.
-- **But that is regime-dependent — and the regime that matters flips the conclusion.** On a
-  2024-era trio where one model dominates (Llama-3.1-8B 68.1% vs Mistral-v0.3 63.9% / Qwen2.5
-  61.0%), **plain voting FAILS — 62.92%, five points *below* the best single model** — while
-  **CES beats it (69.11%, p=1e-7)** and CES-over-voting is **+6.19pp (p≈0)**. Here the
-  likelihood-endorsement branch is not a rounding error; it is the *decisive* mechanism (see §5).
+- **~79% of the gain over the best single model is plain voting**; the non-voting
+  likelihood-endorsement component adds only **+0.39pp** overall (2023-era), and this holds on
+  modern models too (§5). CES ≈ a well-constructed answer-space voting baseline.
+- The genuinely-novel component (open-QA likelihood/MBR endorsement) contributes a **small,
+  consistent** improvement over the best single model on open-QA: **+0.49pp (2023-era), +0.16pp
+  (modern)** — same sign across two model generations, robust to the length-confound ablation, but
+  marginal. *(An earlier draft claimed a +6.19pp modern-models "inversion"; that was an artifact of
+  an order-dependent open-QA voting tie-break and has been retracted — see §5.)*
 
-**Implication for framing:** the honest contribution is two-fold — (1) the **negative result**
-that distribution-space byte fusion collapses while a trivial answer-space baseline beats it and
-the best single model; and (2) the **regime analysis**: answer-space *voting* suffices when
-models are complementary, but **likelihood-endorsement selection is essential when one modern
-model dominates** — exactly the realistic case. The DeePEn reproduction (below) tests whether the
-distribution-space paradigm itself fails or only our byte-tree instantiation.
+**Implication for framing:** this is a **negative-result / analysis** paper. Its contribution is
+(1) the mechanistically-diagnosed collapse of byte-level distribution fusion (byte-bloat) while a
+trivial answer-space selector beats it and the best single model; and (2) the honest decomposition
+showing that gain is mostly plain voting, with a small consistent open-QA endorsement effect on
+top. It is **not** a method paper about a new decisive ensemble mechanism. The DeePEn reproduction
+(below) narrows the negative result to our byte-tree instantiation rather than the paradigm.
 
 ## 1. Why byte-space fusion fails (the negative result)
 
@@ -44,10 +45,12 @@ only as an agreement sensor and delegate divergent steps to the most-confident a
 (47–48%). A specific finding: **per-step leader switching zeroes out GSM8K** because it breaks
 multi-step reasoning mid-chain. (`eval/deleg_orchestrator.py`.)
 
-**Resolved by reproduction (§6):** DeePEn does distribution averaging in a *relative-representation*
-space. We ran DeePEn's released code on our own models — it produces correct, coherent answers and
-beats the best single model (44.0% vs 40.0% GSM8K, scoped). So distribution fusion is **not**
-inherently broken; the failure is specific to *our byte-tree instantiation* (averaging next-*byte*
+**Narrowed by reproduction (§6):** DeePEn does distribution averaging in a *relative-representation*
+space. We ran DeePEn's released code on our own models (scoped: GSM8K, 50 items, Llama-2 + Mistral).
+It produces **correct, coherently-spelled** answers — no byte-bloat. (The 44% on 50 items is
+indicative only, and the 13B single-model baseline is incomplete, so we claim **no** numeric gain.)
+The qualitative point is what matters: relative-space fusion is **not** broken on our exact models,
+so the byte-bloat collapse is specific to *our byte-tree instantiation* (averaging next-*byte*
 distributions yields an argmax no model intended). See
 [`../experiment_analysis/2026-08-18-deepen/RESULTS_DEEPEN.md`](../experiment_analysis/2026-08-18-deepen/RESULTS_DEEPEN.md).
 
@@ -101,32 +104,43 @@ length** — pure length selection underperforms it.
 - **Weighted majority voting** — the natural fix for the PIQA regression (76.1 → 71.1 when a
   dominant model is outvoted) is decades-old weighted voting, not novel.
 
-## 5. Modern models: the endorsement mechanism becomes decisive
+## 5. Modern models (2024-era) — and a retracted claim
 
 Repeating the full 40,604-prompt evaluation on a 2024-era trio (Qwen2.5-7B, Llama-3.1-8B,
-Mistral-7B-v0.3 — three distinct tokenizers) inverts the §2 conclusion. Full write-up:
+Mistral-7B-v0.3 — three distinct tokenizers; Llama-3.1 dominant at 68.1%). Full write-up:
 [`../experiment_analysis/2026-08-18-modern-models/RESULTS_MODERN.md`](../experiment_analysis/2026-08-18-modern-models/RESULTS_MODERN.md).
 
-| method | acc | vs best single |
-|---|---:|---:|
-| best single (Llama-3.1-8B) | 68.13% | — |
-| plain voting | 62.92% | **−5.21** (fails) |
-| CES | 69.11% | **+0.98** (p = 1e-7) |
-| — CES over voting | | **+6.19** (p ≈ 0) |
+**Retraction.** An earlier draft reported that plain voting *fails* here (62.92%, below best single)
+while CES is decisive (+6.19pp over voting). That was an **artifact**: the open-QA voting score is
+set by an order-dependent tie-break (fallback to the first-listed candidate when <2 models agree —
+near-always, for free text), and the run listed the *weakest* model (Qwen) first. With a fair
+fallback the effect vanishes:
 
-Here one model dominates, so majority voting is dragged *below* the best single model. On open-QA
-voting loses 2,561 items vs best-single while endorsement is +40 — a +2,601-item swing. **The
-likelihood-endorsement branch is decisive, not marginal, in this regime**, and again not a length
-artifact (endorsement 65.6% vs longest 61.2% / shortest 55.0%). Contribution strength is
-model-regime-dependent — which is itself a reportable finding.
+| open-QA tie-break | voting | vs CES 69.11% |
+|---|---:|---:|
+| Qwen first (weakest) — *retracted* | 62.92% | +6.19 |
+| **Llama-3.1 first (fair)** | **69.25%** | **−0.14 (p=0.38, n.s.)** |
+
+So **voting-done-right (69.25%) ties/beats CES (69.11%)**; CES is essentially a well-constructed
+majority vote here (it is even worse than voting on the discrete branch, −87 items).
+
+**The honest, order-independent measure** — endorsement vs the best single model, on open-QA —
+gives **+0.16pp (modern)** and **+0.49pp (2023-era)**: small, same-sign across two model
+generations, length-robust, but marginal. There is no regime-dependent inversion.
 
 ## 6. Limitations / open work
 
-1. **DeePEn reproduction** — done, scoped (§1: fusion works, beats best single on our models);
-   remaining is scaling to full test sets and all six benchmarks (runtime only).
-2. **Modern models** — results are on 2023-era Llama-2-13B / Mistral-7B-v0.2 / Yi-6B; needs
-   Llama-3.x / Qwen2.5-class to show the complementarity survives.
-3. **Ablations** — N, ensemble composition, and a weighted-voting baseline.
-4. **Statistics** — McNemar reported here; add seeds/CIs and the MBR & PairRanker baselines.
-5. **Naming** — the method was renamed off "EWC" (collides with Elastic Weight Consolidation).
-   The `ces_batched == ces` parity holds only for odd N (even N can split votes).
+1. **Weighted majority voting — highest priority.** The textbook fix for a dominant model being
+   outvoted (the exact §5 phenomenon). If weighted voting also handles the modern trio, the
+   endorsement component has no room left as a distinct contribution. Not yet run.
+2. **A principled open-QA voting baseline.** Plain voting is ill-defined on free text; the current
+   order-dependent tie-break is not a fair baseline (§5). The honest comparison used here is
+   endorsement vs the best single model on open-QA (+0.16 to +0.49pp).
+3. **PairRanker / LLM-Blender and MBR** as selection baselines — cited (§4) but not run.
+4. **DeePEn at scale** — done only scoped (GSM8K, 50 items, 2 models, 13B baseline incomplete);
+   scale to full test sets + all six benchmarks + the missing baseline.
+5. **Statistics / data** — McNemar reported; add seeds/CIs. Ship the raw 40k generation JSONs (or a
+   hash-verified subset) — currently `eval/out/` is gitignored, so results aren't independently
+   checkable from the repo alone.
+6. **Naming / scope** — renamed off "EWC" (Elastic Weight Consolidation collision); the
+   `ces_batched == ces` parity holds only for odd N. Models are 2023/2024-era; no scaling-law claim.

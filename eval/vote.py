@@ -38,9 +38,12 @@ def vote_choice(preds):
 def openqa_choice_idx(shorts):
     """Pick which model's answer to trust for open QA (no gold peeking).
 
-    If >=2 models give the same normalized short answer, trust the earliest of
-    those; otherwise trust the highest-priority model. The FULL generation of the
-    chosen model is then scored, so this never underperforms that model alone."""
+    WARNING: majority voting is ill-defined on free-form text. When <2 models agree
+    (near-always) this falls back to candidate index 0, so the open-QA voting score
+    is ORDER-DEPENDENT and is NOT a fair baseline — listing a weak model first tanks
+    it, listing a strong one inflates it. Do not compare CES against this on open-QA;
+    use endorsement vs the best single model instead (see eval/paper_analysis.py's
+    "HONEST measures"). Kept only for the discrete-answer voting reference."""
     counts = collections.Counter(s for s in shorts if s)
     if counts:
         best = max(counts.values())
