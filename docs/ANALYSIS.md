@@ -44,10 +44,12 @@ only as an agreement sensor and delegate divergent steps to the most-confident a
 (47–48%). A specific finding: **per-step leader switching zeroes out GSM8K** because it breaks
 multi-step reasoning mid-chain. (`eval/deleg_orchestrator.py`.)
 
-**Caveat that must be resolved before claiming the paradigm fails:** DeePEn does distribution
-averaging in a *relative-representation* space and reports gains on these same six benchmarks.
-Our 36% shows *our byte-tree instantiation* fails — not necessarily the paradigm. A DeePEn
-reproduction on this setup is required and is listed as open work.
+**Resolved by reproduction (§6):** DeePEn does distribution averaging in a *relative-representation*
+space. We ran DeePEn's released code on our own models — it produces correct, coherent answers and
+beats the best single model (44.0% vs 40.0% GSM8K, scoped). So distribution fusion is **not**
+inherently broken; the failure is specific to *our byte-tree instantiation* (averaging next-*byte*
+distributions yields an argmax no model intended). See
+[`../experiment_analysis/2026-08-18-deepen/RESULTS_DEEPEN.md`](../experiment_analysis/2026-08-18-deepen/RESULTS_DEEPEN.md).
 
 ## 2. Answer-space selection
 
@@ -120,7 +122,8 @@ model-regime-dependent — which is itself a reportable finding.
 
 ## 6. Limitations / open work
 
-1. **DeePEn reproduction** (pivotal — decides "our instantiation fails" vs "paradigm fails").
+1. **DeePEn reproduction** — done, scoped (§1: fusion works, beats best single on our models);
+   remaining is scaling to full test sets and all six benchmarks (runtime only).
 2. **Modern models** — results are on 2023-era Llama-2-13B / Mistral-7B-v0.2 / Yi-6B; needs
    Llama-3.x / Qwen2.5-class to show the complementarity survives.
 3. **Ablations** — N, ensemble composition, and a weighted-voting baseline.
