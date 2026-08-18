@@ -21,8 +21,11 @@ n = len(D[0]["results"])
 with open(a.out, "w") as f:
     for i in range(n):
         it = D[0]["results"][i]["item"]
+        disc = it["type"] in ("mc", "number")
         rec = {
             "task": it["task"], "type": it["type"], "gold": it["gold"],
+            # discrete answer each model extracted (for recomputing voting variants); null for open-QA
+            "pred": [scoring.predict_item(it, D[m]["results"][i]["gen"]) if disc else None for m in range(3)],
             "correct": [int(bool(scoring.score_item(it, D[m]["results"][i]["gen"]))) for m in range(3)],
             "ces": int(bool(E["results"][i]["correct"])),
         }

@@ -22,11 +22,14 @@ recomputed from the saved 40,604-prompt generations by `eval/paper_analysis.py`.
 - **~79% of the gain over the best single model is plain voting**; the non-voting
   likelihood-endorsement component adds only **+0.39pp** overall (2023-era), and this holds on
   modern models too (§5). CES ≈ a well-constructed answer-space voting baseline.
-- The genuinely-novel component (open-QA likelihood/MBR endorsement) contributes a **small,
-  consistent** improvement over the best single model on open-QA: **+0.49pp (2023-era), +0.16pp
-  (modern)** — same sign across two model generations, robust to the length-confound ablation, but
-  marginal. *(An earlier draft claimed a +6.19pp modern-models "inversion"; that was an artifact of
-  an order-dependent open-QA voting tie-break and has been retracted — see §5.)*
+- The genuinely-novel component (open-QA likelihood/MBR endorsement) contributes a **small**
+  improvement over the best single model on open-QA — but only one of two runs is distinguishable
+  from zero (paired bootstrap, 4,000 resamples): **+0.49pp [+0.13, +0.84] (2023-era)** and
+  **+0.16pp [−0.22, +0.51] (modern — CI crosses zero)**. Consistent in sign, length-robust, but
+  marginal — which *supports* the thesis that endorsement adds little. (Headline CES-vs-best-single
+  gains are solid: **+1.85 [+1.52, +2.18]** and **+0.98 [+0.62, +1.35]**.) *(An earlier draft
+  claimed a +6.19pp modern "inversion" — an artifact of an order-dependent open-QA voting tie-break,
+  retracted, see §5.)*
 - **Sharper still: CES has no distinct advantage over trivial baselines.** Two dev-split (20-seed)
   baselines each match or beat it: an **answer-type router** ("best model for MC/numeric, best model
   for open-QA") — modern 69.19 ≥ CES 69.11 (n.s.), 2023-era 62.86 vs 63.17 (+0.31, p=0.045); and
@@ -39,10 +42,13 @@ recomputed from the saved 40,604-prompt generations by `eval/paper_analysis.py`.
 (1) the mechanistically-diagnosed collapse of byte-level distribution fusion (byte-bloat) while a
 trivial answer-space method beats it and the best single model; and (2) the honest decomposition
 showing that gain is **mostly answer-type routing** (a two-number, label-free heuristic — §2b), with
-the remainder split between within-type majority voting and a small, consistent open-QA endorsement
-effect (+0.16 to +0.49pp). It is **not** a method paper about a new decisive ensemble mechanism. The
-DeePEn reproduction (below) narrows the negative result to our byte-tree instantiation, not the
-paradigm.
+the remainder split between within-type majority voting and a small open-QA endorsement effect
+(+0.16 to +0.49pp, only one of two runs distinguishable from zero). It is **not** a method paper
+about a new decisive ensemble mechanism. And (3) a **reusable methodological point**: *any* ensemble
+evaluated on a mixed-task suite collects a free answer-**type routing** bonus that most ensembling
+papers do not control for — the answer-type router (§2b) is a cheap, label-free control others
+should adopt before claiming a fusion/selection gain. The DeePEn reproduction (below) narrows the
+negative result to our byte-tree instantiation, not the paradigm.
 
 ## 1. Why byte-space fusion fails (the negative result)
 
@@ -165,9 +171,17 @@ generations, length-robust, but marginal. There is no regime-dependent inversion
 2. **Answer-type router baseline — done (§2b).** Dev-split, matches/beats CES; folded into the
    thesis. A principled open-QA voting baseline is still ill-defined (the order-dependent tie-break
    is not fair, §5); endorsement vs best-single-on-open-QA is the honest comparison (+0.16–0.49pp).
-3. **PairRanker / LLM-Blender and MBR** as selection baselines — cited (§4) but not run.
-4. **DeePEn at scale** — done only scoped (GSM8K, 50 items, 2 models, 13B baseline incomplete);
-   scale to full test sets + all six benchmarks + the missing baseline.
+3. **Trained rerankers (LLM-Blender / PairRanker) — out of scope, by declaration.** We restrict to
+   **training-free** ensembling (as DeePEn does). PairRanker is trained on MixInstruct for
+   instruction-following quality and is out of domain for MC-letter / integer answers (GAC report
+   its fuser refusing a large share of QA questions), so running it off-the-shelf would buy a
+   domain-mismatch argument rather than settle one. Cited as complementary (§4). MBR is the right
+   framing for our open-QA endorsement branch (§2), not a separate baseline. With this boundary the
+   baseline set is complete: plain / weighted / type-router / oracle-router / oracle-ceiling + length
+   ablation.
+4. **DeePEn at scale — the gating open item.** The §1 claim (our byte-tree instantiation fails, not
+   the paradigm) is our *primary* contribution and currently rests on a scoped run (GSM8K, 50 items,
+   2 models, 13B baseline incomplete). In progress: full GSM8K + a second task + the missing baseline.
 5. **Statistics / data** — McNemar reported; add seeds/CIs. Compact per-prompt correctness for both
    40k runs is now shipped in `eval/results_export/` (per model + CES; recompute any headline number
    with `eval/export_results.py`'s schema). Full generations remain local (gitignored).
