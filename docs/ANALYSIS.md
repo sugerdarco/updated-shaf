@@ -27,13 +27,21 @@ recomputed from the saved 40,604-prompt generations by `eval/paper_analysis.py`.
   (modern)** — same sign across two model generations, robust to the length-confound ablation, but
   marginal. *(An earlier draft claimed a +6.19pp modern-models "inversion"; that was an artifact of
   an order-dependent open-QA voting tie-break and has been retracted — see §5.)*
+- **Sharper still: nearly all the gain over the best single model is answer-TYPE routing.** No
+  single model is best at both discrete and free-form answers, so a trivial dev-split router ("best
+  model for MC/numeric, best model for open-QA", 20 seeds) matches or beats CES — modern **69.19 ≥
+  CES 69.11** (n.s.), 2023-era 62.86 vs CES 63.17 (+0.31, p=0.045). CES is functionally an implicit
+  type router; byte-fusion/voting/endorsement add little beyond routing. See §2b and
+  [`../experiment_analysis/2026-08-18-type-router/RESULTS_ROUTER.md`](../experiment_analysis/2026-08-18-type-router/RESULTS_ROUTER.md).
 
 **Implication for framing:** this is a **negative-result / analysis** paper. Its contribution is
 (1) the mechanistically-diagnosed collapse of byte-level distribution fusion (byte-bloat) while a
-trivial answer-space selector beats it and the best single model; and (2) the honest decomposition
-showing that gain is mostly plain voting, with a small consistent open-QA endorsement effect on
-top. It is **not** a method paper about a new decisive ensemble mechanism. The DeePEn reproduction
-(below) narrows the negative result to our byte-tree instantiation rather than the paradigm.
+trivial answer-space method beats it and the best single model; and (2) the honest decomposition
+showing that gain is **mostly answer-type routing** (a two-number, label-free heuristic — §2b), with
+the remainder split between within-type majority voting and a small, consistent open-QA endorsement
+effect (+0.16 to +0.49pp). It is **not** a method paper about a new decisive ensemble mechanism. The
+DeePEn reproduction (below) narrows the negative result to our byte-tree instantiation, not the
+paradigm.
 
 ## 1. Why byte-space fusion fails (the negative result)
 
@@ -76,6 +84,26 @@ interference). Then one answer is selected. Two selectors:
 
 Voting captures the discrete gain almost entirely; on open-QA it gains *nothing*, and the
 likelihood-endorsement branch is the only thing that helps there.
+
+## 2b. Most of the gain is answer-type routing, not selection
+
+The shipped per-prompt data (`eval/results_export/`) shows **no single model is best at both answer
+types**: on the modern trio Qwen wins discrete (73.9 vs Mistral 62.1) but loses open-QA (50.3 vs
+Mistral 65.4). CES's discrete branch tracks the best discrete model and its open-QA branch tracks
+the best open-QA model — it is an *implicit answer-type router*. An explicit router (one model for
+mc/number, one for open-QA), chosen on a random dev half and applied to the other (20 seeds, no test
+peeking):
+
+| | best single | CES | type-router (dev-split) |
+|---|---:|---:|---:|
+| 2023-era | 61.32 | 63.17 | 62.86 ±0.19 |
+| modern | 68.13 | 69.11 | **69.19 ±0.18** |
+
+Decomposition of CES's gain over best single: **routing accounts for +1.54 of +1.85 (2023-era) and
++1.06 of +0.98 (modern — the router *is* CES)**. So the ensemble's advantage on a mixed suite is
+primarily answer-type routing; fusion/voting/endorsement add little beyond it. Full write-up +
+`eval/type_router.py` in
+[`../experiment_analysis/2026-08-18-type-router/RESULTS_ROUTER.md`](../experiment_analysis/2026-08-18-type-router/RESULTS_ROUTER.md).
 
 ## 3. Is the open-QA gain a length artifact?
 
@@ -133,9 +161,9 @@ generations, length-robust, but marginal. There is no regime-dependent inversion
 1. **Weighted majority voting — highest priority.** The textbook fix for a dominant model being
    outvoted (the exact §5 phenomenon). If weighted voting also handles the modern trio, the
    endorsement component has no room left as a distinct contribution. Not yet run.
-2. **A principled open-QA voting baseline.** Plain voting is ill-defined on free text; the current
-   order-dependent tie-break is not a fair baseline (§5). The honest comparison used here is
-   endorsement vs the best single model on open-QA (+0.16 to +0.49pp).
+2. **Answer-type router baseline — done (§2b).** Dev-split, matches/beats CES; folded into the
+   thesis. A principled open-QA voting baseline is still ill-defined (the order-dependent tie-break
+   is not fair, §5); endorsement vs best-single-on-open-QA is the honest comparison (+0.16–0.49pp).
 3. **PairRanker / LLM-Blender and MBR** as selection baselines — cited (§4) but not run.
 4. **DeePEn at scale** — done only scoped (GSM8K, 50 items, 2 models, 13B baseline incomplete);
    scale to full test sets + all six benchmarks + the missing baseline.
