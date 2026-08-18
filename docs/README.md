@@ -1,14 +1,30 @@
 # SAHF Documentation
 
-This folder is reserved for deep-dive technical documentation on the decoupled SAHF architecture.
+Deep-dive technical documentation for the SAHF cross-tokenizer multi-agent project.
 
-## Planned Documentation Files
+## Files
 
 ```text
 docs/
-├── README.md                          # This documentation
-├── DECOUPLED_ARCHITECTURE_SPEC.md     # The updated specs focusing entirely on Cross-Tokenizer mode
-└── RUNTIME_PERFORMANCE.md             # Formal write-up of the `benchmarks/` results
+├── README.md                          # This index
+├── DECOUPLED_ARCHITECTURE_SPEC.md     # Byte-fusion (Stage 0–8) cross-tokenizer architecture
+├── RUNTIME_PERFORMANCE.md             # Latency/memory of the byte-fusion pipeline
+└── EWC_METHOD.md                      # Endorsement-Weighted Consensus — the method that beats
+                                       # the single-model baseline (accuracy)
 ```
 
-The original `SAHF_ARCHITECTURE_SPEC.md` was highly detailed but focused on the Single-Tokenizer baseline. We will write a brand-new specification tailored specifically to the `pipeline/` and `prefix_tree_build/` folder structures.
+## Two layers of the project
+
+1. **Byte-fusion pipeline** (`pipeline/`, `prefix_tree_build/`, `runners/`) — the original
+   SAHF architecture that reconciles mismatched tokenizers by fusing next-byte distributions
+   on a shared byte-prefix tree. See `DECOUPLED_ARCHITECTURE_SPEC.md` and `RUNTIME_PERFORMANCE.md`.
+
+2. **Accuracy evaluation & ensemble reconciliation** (`eval/`) — added to answer whether the
+   ensemble actually *beats the best single model*. It does, but not via byte fusion (which
+   collapses to ~36% through "byte-bloat"): the winning method is **Endorsement-Weighted
+   Consensus**, specified in [`EWC_METHOD.md`](EWC_METHOD.md) and documented with usage in
+   [`../eval/README.md`](../eval/README.md). Empirical write-ups live in
+   [`../experiment_analysis/2026-08-18-*`](../experiment_analysis).
+
+**Headline result (full DeePEn eval set, 40,604 prompts):** EWC 63.17% vs best single model
+61.31%.
